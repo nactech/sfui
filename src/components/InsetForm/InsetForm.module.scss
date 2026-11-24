@@ -1,0 +1,321 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// Inset Form — Settings rows (final.pen I/A1–I/A5, masters Inset Form/Row/Text, /Prefix, /Select, /Multiline).
+// Apple form grammar: label left, value right, rows grouped on surface/1 with hairlines.
+// Focus lifts the row one surface step (surface/2). The Search capsule is Field's SearchField at size "sm".
+
+.form {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font-family: var(--sf-font-sans);
+}
+
+// Not drawn in the frames: styled as a footnote that names the group, sitting 8 above it.
+.title {
+  padding: 0 rem(16) rem(8);
+  @include text(12, 500, 17);
+  color: var(--sf-fg-muted);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--sf-rim-default);
+  border-radius: var(--sf-radius-lg);
+  background-color: var(--sf-surface-1);
+}
+
+// The frames stack the footer 14 below the group.
+.footer {
+  padding: rem(14) rem(16) 0;
+  @include text(12, 400, 17);
+  color: var(--sf-fg-subtle);
+}
+
+/* ── Row ─────────────────────────────────────────────────────────── */
+
+.row {
+  --_label-color: var(--sf-fg-muted);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  cursor: text;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  // Hairline between rows, overlapping the row's last pixel (52 pitch, as drawn).
+  &:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background-color: var(--sf-rim-default);
+    pointer-events: none;
+  }
+}
+
+.row[data-kind="select"] {
+  cursor: pointer;
+}
+
+// Focus (I/A2): the row lifts one surface step, the label turns accent.
+.row:focus-within {
+  --_label-color: var(--sf-accent-default);
+
+  background-color: var(--sf-surface-2);
+}
+
+// Error (I/A4): danger label + CircleAlert; the message sits under the control column.
+.row[data-invalid] {
+  --_label-color: var(--sf-danger-default);
+}
+
+// Disabled (I/A5): group stays surface/1, every glyph turns disabled/fg.
+.row[data-disabled] {
+  --_label-color: var(--sf-disabled-fg);
+
+  cursor: not-allowed;
+
+  .row-label,
+  .input,
+  .textarea {
+    cursor: not-allowed;
+  }
+
+  .prefix,
+  .chevrons,
+  .counter {
+    color: var(--sf-disabled-fg);
+  }
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  gap: rem(12);
+  box-sizing: border-box;
+  min-height: rem(52);
+  padding: 0 rem(16);
+}
+
+.row-label {
+  flex-shrink: 0;
+  width: rem(96);
+  @include text(15, 400);
+  color: var(--_label-color);
+  overflow-wrap: anywhere;
+  cursor: inherit;
+  transition: color var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+.value {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 0;
+}
+
+.row[data-kind="select"] .value {
+  justify-content: flex-end;
+}
+
+.prefix {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  @include text(15, 400, 20);
+  color: var(--sf-fg-subtle);
+  white-space: nowrap;
+
+  svg {
+    width: rem(16);
+    height: rem(16);
+    margin-right: rem(6);
+  }
+}
+
+/* ── Controls ────────────────────────────────────────────────────── */
+
+%control {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  font-family: var(--sf-font-sans);
+  font-size: rem(15);
+  font-weight: 400;
+  color: var(--sf-fg-default);
+  caret-color: var(--sf-accent-default);
+
+  &::placeholder {
+    color: var(--sf-fg-subtle);
+    opacity: 1;
+  }
+
+  &:disabled {
+    color: var(--sf-disabled-fg);
+    -webkit-text-fill-color: var(--sf-disabled-fg);
+
+    &::placeholder {
+      color: var(--sf-disabled-fg);
+      -webkit-text-fill-color: var(--sf-disabled-fg);
+    }
+  }
+}
+
+.input {
+  @extend %control;
+
+  flex: 1 1 0;
+  line-height: rem(20);
+}
+
+select.input {
+  overflow: hidden;
+  // Filled select values are muted (I/A3); accent while focused (I/A2).
+  color: var(--sf-fg-muted);
+  text-align: right;
+  text-align-last: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-empty] {
+    color: var(--sf-fg-subtle);
+  }
+
+  &:focus {
+    color: var(--sf-accent-default);
+  }
+
+  &:disabled {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  option {
+    background-color: var(--sf-surface-2);
+    color: var(--sf-fg-default);
+  }
+}
+
+.textarea {
+  @extend %control;
+
+  display: block;
+  min-height: rem(21);
+  line-height: rem(21);
+  resize: none;
+
+  &[data-auto-grow] {
+    overflow: hidden;
+  }
+}
+
+/* ── Icons / counter / helper ────────────────────────────────────── */
+
+.alert {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--sf-danger-default);
+
+  svg {
+    width: rem(18);
+    height: rem(18);
+  }
+}
+
+.chevrons {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--sf-fg-subtle);
+  pointer-events: none;
+  transition: color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  svg {
+    width: rem(16);
+    height: rem(16);
+  }
+}
+
+.row:focus-within .chevrons {
+  color: var(--sf-accent-default);
+}
+
+.row[data-kind="multiline"] .main {
+  flex-direction: column;
+  align-items: stretch;
+  gap: rem(6);
+  padding: rem(12) rem(16);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: rem(12);
+
+  .row-label {
+    width: auto;
+  }
+}
+
+.counter {
+  flex-shrink: 0;
+  font-family: var(--sf-font-mono);
+  font-size: rem(11);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--sf-fg-subtle);
+  white-space: nowrap;
+
+  &[data-over] {
+    color: var(--sf-danger-default);
+  }
+}
+
+// Under the control column: 16 inset + 96 label + 12 gap = 124. Multiline: under the text, 16.
+.helper {
+  padding: 0 rem(16) rem(12) rem(124);
+  @include text(12, 400);
+  color: var(--sf-fg-subtle);
+}
+
+.row[data-kind="multiline"] .helper {
+  padding-left: rem(16);
+}
+
+.row[data-invalid] .helper {
+  color: var(--sf-danger-default);
+}
+
+.row[data-disabled] .helper {
+  color: var(--sf-disabled-fg);
+}
+
+@include reduced-motion {
+  .row,
+  .row-label,
+  .chevrons,
+  select.input {
+    transition: none;
+  }
+}
