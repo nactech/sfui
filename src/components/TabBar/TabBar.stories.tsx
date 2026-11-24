@@ -314,3 +314,184 @@ export const Responsive: Story = {
     </div>
   ),
 };
+
+// ── iOS implementation ──────────────────────────────────────────────────────
+// Frames: final.pen → N/A1 "Tab bar / iOS" (rows 1–5) and N/A3 "Tab bar / Motion" row I + SPEC (iOS column).
+// Pinned to `platform: "ios"`; 390 px phone-width stages.
+
+const PhoneStage = ({ children, height = 6.875, caption }: { children: React.ReactNode; height?: number; caption?: string }) => (
+  <div style={{ display: "grid", gap: "0.5rem", width: "24.375rem", maxWidth: "100%" }}>
+    {caption && (
+      <div style={{ font: "500 0.6875rem/1 var(--sf-font-mono)", letterSpacing: "0.08em", color: "var(--sf-fg-muted)" }}>
+        {caption}
+      </div>
+    )}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: `${height}rem`,
+        padding: "0 1rem",
+        borderRadius: "1.25rem",
+        background: photo,
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </div>
+  </div>
+);
+
+const iosParams = { platform: "ios", layout: "centered" } as const;
+
+/** N/A1 row 1 · Rest — floating glass bar, the selected tab sits in the lens, search is a separate circle. */
+export const IOSRest: Story = {
+  name: "iOS · Rest",
+  parameters: iosParams,
+  args: { search: { label: "Search stickers" } },
+  render: (args) => (
+    <PhoneStage>
+      <TabBar {...args} />
+    </PhoneStage>
+  ),
+};
+
+/**
+ * N/A1 rows 1–5 side by side. Row 2 is put into its pressed state by the play function; row 4 is `minimized`,
+ * row 5 renders the search field expanded.
+ */
+export const IOSMatrix: Story = {
+  name: "iOS · Matrix",
+  parameters: iosParams,
+  args: { search: { label: "Search stickers" } },
+  render: (args) => (
+    <div style={{ display: "grid", gap: "1.5rem" }}>
+      <PhoneStage caption="1 · REST">
+        <TabBar {...args} />
+      </PhoneStage>
+      <PhoneStage caption="2 · PRESSED — lens grows under the finger">
+        <TabBar {...args} data-row="pressed" />
+      </PhoneStage>
+      <PhoneStage caption="3 · BADGE">
+        <TabBar {...args} items={items.map((i) => (i.value === "export" ? { ...i, badge: 3 } : i))} />
+      </PhoneStage>
+      <PhoneStage caption="4 · MINIMIZED ON SCROLL" height={6}>
+        <TabBar {...args} minimized />
+      </PhoneStage>
+      <PhoneStage caption="5 · SEARCH EXPANDED — search tab becomes a field" height={6}>
+        <TabBar {...args} search={{ label: "Search stickers", defaultExpanded: true }} />
+      </PhoneStage>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const pressedRow = canvasElement.querySelector('[data-row="pressed"]') as HTMLElement;
+    fireEvent.pointerDown(within(pressedRow).getByRole("tab", { name: "Player" }), { pointerId: 99, isPrimary: true, button: 0 });
+  },
+};
+
+/** N/A1 row 3 · Badge (count, 99+ cap, dot) on iOS. */
+export const IOSBadges: Story = {
+  name: "iOS · Badges",
+  parameters: iosParams,
+  args: {
+    search: { label: "Search stickers" },
+    items: [{ ...items[0] }, { ...items[1], badge: true, badgeLabel: "new" }, { ...items[2], badge: 3 }, { ...items[3], badge: 120 }],
+  },
+  render: IOSRest.render,
+};
+
+/**
+ * N/A3 row I + SPEC (iOS): the lens travels with the iOS spring (response 0.32, damping 0.82) and stretches × 1.3.
+ * Press and hold: the lens lifts into glass at 1.15×; drag: it follows the finger (0.15 / 0.86) and the tab opens only
+ * on release. Drag > 40 px away from the bar to cancel. Reduce motion: instant switch.
+ */
+export const IOSMotion: Story = {
+  name: "iOS · Motion",
+  parameters: iosParams,
+  args: { search: { label: "Search stickers" } },
+  render: function Render(args) {
+    const [value, setValue] = useState("library");
+    return (
+      <PhoneStage caption={`CONTENT: ${value.toUpperCase()}`}>
+        <TabBar
+          {...args}
+          value={value}
+          onValueChange={(v) => {
+            setValue(v);
+            args.onValueChange?.(v);
+          }}
+        />
+      </PhoneStage>
+    );
+  },
+};
+
+/** N/A1 row 5 · Search: tap the circle — it becomes a field (Esc or ✕ closes it). */
+export const IOSSearch: Story = {
+  name: "iOS · Search",
+  parameters: iosParams,
+  render: function Render(args) {
+    const [query, setQuery] = useState("");
+    return (
+      <div style={{ display: "grid", gap: "0.75rem" }}>
+        <PhoneStage height={6}>
+          <TabBar
+            {...args}
+            search={{
+              label: "Search stickers",
+              inputProps: { value: query, onChange: (e) => setQuery(e.target.value) },
+              onExpandedChange: (open) => !open && setQuery(""),
+            }}
+          />
+        </PhoneStage>
+        <div style={{ font: "500 0.75rem var(--sf-font-mono)", color: "var(--sf-fg-muted)" }}>query: “{query}”</div>
+      </div>
+    );
+  },
+};
+
+/**
+ * N/A1 row 4 · `minimized="auto"` on a phone-sized scroller: scroll down — the bar collapses to the selected tab and
+ * the search circle; scroll up (or tap the circle) — it comes back.
+ */
+export const IOSMinimizeOnScroll: Story = {
+  name: "iOS · Minimize on scroll",
+  parameters: iosParams,
+  render: function Render(args) {
+    const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+    return (
+      <div
+        style={{
+          position: "relative",
+          width: "24.375rem",
+          height: "40rem",
+          borderRadius: "2.5rem",
+          border: "1px solid var(--sf-rim-strong)",
+          overflow: "hidden",
+          background: "var(--sf-surface-0)",
+        }}
+      >
+        <div ref={setScroller} style={{ height: "100%", overflowY: "auto" }}>
+          <div style={{ padding: "1rem 1rem 7rem", display: "grid", gap: "0.875rem" }}>
+            <div style={{ height: "14rem", borderRadius: "1rem", background: photo }} />
+            <Cards count={12} />
+            <div style={{ height: "14rem", borderRadius: "1rem", background: photo }} />
+            <Cards count={9} />
+          </div>
+        </div>
+        <div style={{ position: "absolute", insetInline: "1rem", bottom: "1.3125rem" }}>
+          <TabBar {...args} minimized="auto" scrollContainer={scroller} search={{ label: "Search stickers" }} />
+        </div>
+      </div>
+    );
+  },
+};
+
+/** Links mode on iOS: a `<nav>` with `aria-current="page"`. */
+export const IOSLinks: Story = {
+  name: "iOS · Links",
+  parameters: iosParams,
+  args: { items: items.map((i) => ({ ...i, href: `#${i.value}` })), "aria-label": "Main", search: { label: "Search stickers" } },
+  render: IOSRest.render,
+};

@@ -1,6 +1,6 @@
 /**
- * The TabBar "Pill": one shared selection indicator that travels between tabs.
- * Motion values come from final.pen → N/A3 "Tab bar / Motion" (SPEC, Android + Web column).
+ * The TabBar "Pill": one shared selection indicator that travels between tabs — the tonal pill on Android + Web,
+ * the glass lens on iOS. Motion values come from final.pen → N/A3 "Tab bar / Motion" (SPEC, both columns).
  * Pure DOM-free physics; the component feeds it measured anchor rects and paints its frames.
  */
 
@@ -11,6 +11,43 @@ export interface SpringConfig {
   damping: number;
 }
 
+export interface PillMotionConfig {
+  /** Tap travel spring. */
+  tap: SpringConfig;
+  /** Drag-follow spring. */
+  drag: SpringConfig;
+  /** Max width multiplier mid-travel. */
+  stretch: number;
+  /** The trailing edge starts this much later than the leading one (ms). */
+  trailLagMs: number;
+  /** Height lost at full stretch, as a fraction of the rest height. */
+  squash: number;
+  /** Fraction of the travel at which the tint swaps to the target tab. */
+  tintSwapAt: number;
+  /** Hold (press on the selected tab / drag) grow duration, ease-out. */
+  holdMs: number;
+  /** Hold grow, added in design px… */
+  holdGrow: { width: number; height: number };
+  /** …and/or as a multiplier of the rest size. */
+  holdScale: number;
+  /** Finger leaves the bar by more than this (px) → cancel. */
+  cancelDistance: number;
+  /** Horizontal travel before a press turns into a drag (px). */
+  dragSlop: number;
+  /** Reduce motion: instant switch with a fade of this length. */
+  reducedMs: number;
+}
+
+/**
+ * SwiftUI-style spring (response in seconds, damping fraction) → stiffness / damping ratio for mass 1:
+ * ω = 2π / response, stiffness = ω².
+ */
+export function springFromResponse(response: number, dampingFraction: number): SpringConfig {
+  const omega = (2 * Math.PI) / response;
+  return { stiffness: omega * omega, damping: dampingFraction };
+}
+
+/** Android + Web pill. */
 export const TAB_BAR_MOTION = {
   /** Tap travel: spring stiffness 700, damping 0.9 (≈ 260–320 ms). */
   tap: { stiffness: 700, damping: 0.9 } satisfies SpringConfig,
@@ -27,13 +64,28 @@ export const TAB_BAR_MOTION = {
   /** Hold: pill → 62 × 36 (from 56 × 32), 120 ms ease-out. Deltas in design px. */
   holdMs: 120,
   holdGrow: { width: 6, height: 4 },
+  holdScale: 1,
   /** Cancel: finger leaves the bar by more than 40 px → back to origin. */
   cancelDistance: 40,
   /** Horizontal travel before a press turns into a drag (px). */
   dragSlop: 6,
   /** Reduce motion: no stretch / overshoot / travel; 150 ms ease-out. */
   reducedMs: 150,
-} as const;
+} as const satisfies PillMotionConfig;
+
+/**
+ * iOS glass lens (N/A3 SPEC, iOS column): same timing rules, iOS springs.
+ * Tap: response 0.32 / damping 0.82. Drag: interactive spring 0.15 / 0.86. Stretch × 1.3 ("glass thins").
+ * Hold: lens → 1.15× in 120 ms. Tint swap, release, cancel and reduce motion: same as Android + Web.
+ */
+export const IOS_LENS_MOTION: PillMotionConfig = {
+  ...TAB_BAR_MOTION,
+  tap: springFromResponse(0.32, 0.82),
+  drag: springFromResponse(0.15, 0.86),
+  stretch: 1.3,
+  holdGrow: { width: 0, height: 0 },
+  holdScale: 1.15,
+};
 
 /** Rect of a tab's anchor, relative to the bar's padding box, in px. */
 export interface PillRect {
@@ -45,6 +97,8 @@ export interface PillRect {
 
 export interface PillFrame extends PillRect {
   opacity: number;
+  /** Hold / drag progress 0…1 (the iOS lens turns into lifted glass with it). */
+  lift: number;
 }
 
 export type PillMode = "idle" | "travel" | "drag";
@@ -111,7 +165,9 @@ export class PillMotion {
   private leadRight = true;
   private fromCenter = 0;
   private toCenter = 0;
-  private cfg: SpringConfig = TAB_BAR_MOTION.tap;
+  /** Platform motion values; may be swapped between gestures (platform switch). */
+  config: PillMotionConfig;
+  private cfg: SpringConfig;
   private grow: Tween = { value: 0, from: 0, to: 0, start: 0, duration: 0 };
   private fade: Tween = { value: 0, from: 0, to: 0, start: 0, duration: 0 };
   private anchors: (PillRect | null)[] = [];
@@ -120,8 +176,10 @@ export class PillMotion {
   private last = 0;
   private host: PillHost;
 
-  constructor(host: PillHost) {
+  constructor(host: PillHost, config: PillMotionConfig = TAB_BAR_MOTION) {
     this.host = host;
+    this.config = config;
+    this.cfg = config.tap;
   }
 
   private now() {
@@ -176,13 +234,13 @@ export class PillMotion {
     const rr = this.right.pos;
     this.mode = "travel";
     this.target = index;
-    this.cfg = TAB_BAR_MOTION.tap;
+    this.cfg = this.config.tap;
     this.fromCenter = (l + rr) / 2;
     this.toCenter = r.x + r.w / 2;
     this.leadRight = this.toCenter >= this.fromCenter;
-    this.stretchCap = TAB_BAR_MOTION.stretch * Math.max(r.w, rr - l);
+    this.stretchCap = this.config.stretch * Math.max(r.w, rr - l);
     this.setRest(r);
-    const lag = opts.lag === false ? 0 : TAB_BAR_MOTION.trailLagMs;
+    const lag = opts.lag === false ? 0 : this.config.trailLagMs;
     this.left.target = r.x;
     this.right.target = r.x + r.w;
     this.left.startAt = now + (this.leadRight ? lag : 0);
@@ -191,7 +249,7 @@ export class PillMotion {
     this.run();
   }
 
-  /** Press-and-hold feedback: grow to 62 × 36 (design px) in 120 ms ease-out. */
+  /** Press-and-hold feedback: pill → 62 × 36 (design px) / lens → 1.15×, 120 ms ease-out. */
   setHold(on: boolean) {
     const to = on ? 1 : 0;
     if (this.grow.to === to) return;
@@ -200,7 +258,7 @@ export class PillMotion {
       this.paint();
       return;
     }
-    this.grow = { value: this.grow.value, from: this.grow.value, to, start: this.now(), duration: TAB_BAR_MOTION.holdMs };
+    this.grow = { value: this.grow.value, from: this.grow.value, to, start: this.now(), duration: this.config.holdMs };
     this.run();
   }
 
@@ -212,7 +270,7 @@ export class PillMotion {
       if (n >= 0) this.jumpTo(n);
     }
     this.mode = "drag";
-    this.cfg = TAB_BAR_MOTION.drag;
+    this.cfg = this.config.drag;
     this.stretchCap = Infinity;
     this.setHold(true);
     this.dragTo(pointerX);
@@ -297,7 +355,7 @@ export class PillMotion {
   }
 
   private fadeIn() {
-    this.fade = { value: 0, from: 0, to: 1, start: this.now(), duration: TAB_BAR_MOTION.reducedMs };
+    this.fade = { value: 0, from: 0, to: 1, start: this.now(), duration: this.config.reducedMs };
     this.paint();
     this.run();
   }
@@ -385,22 +443,25 @@ export class PillMotion {
       }
       const centre = (l + r) / 2;
       const span = this.toCenter - this.fromCenter;
-      if (span !== 0 && (centre - this.fromCenter) / span >= TAB_BAR_MOTION.tintSwapAt) this.setIndicated(this.target);
+      if (span !== 0 && (centre - this.fromCenter) / span >= this.config.tintSwapAt) this.setIndicated(this.target);
     } else if (this.mode === "drag") {
       this.setIndicated(this.nearestTo((l + r) / 2, false));
     }
     const w = Math.max(0, r - l);
-    const stretch = this.restW > 0 ? clamp((w - this.restW) / (this.restW * (TAB_BAR_MOTION.stretch - 1)), 0, 1) : 0;
-    const squashedH = this.h * (1 - TAB_BAR_MOTION.squash * stretch);
+    const stretch = this.restW > 0 ? clamp((w - this.restW) / (this.restW * (this.config.stretch - 1)), 0, 1) : 0;
+    const squashedH = this.h * (1 - this.config.squash * stretch);
     const k = this.host.scale();
-    const gw = TAB_BAR_MOTION.holdGrow.width * k * this.grow.value;
-    const gh = TAB_BAR_MOTION.holdGrow.height * k * this.grow.value;
+    const g = this.grow.value;
+    const scale = this.config.holdScale - 1;
+    const gw = (this.config.holdGrow.width * k + w * scale) * g;
+    const gh = (this.config.holdGrow.height * k + squashedH * scale) * g;
     this.host.render({
       x: l - gw / 2,
       y: this.y + (this.h - squashedH) / 2 - gh / 2,
       w: w + gw,
       h: squashedH + gh,
       opacity: this.fade.value,
+      lift: g,
     });
   }
 }

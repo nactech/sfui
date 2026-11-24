@@ -1,15 +1,26 @@
-import { PillMotion, TAB_BAR_MOTION, stepSpring, type PillFrame, type PillHost, type PillRect } from "./pillMotion";
+import {
+  IOS_LENS_MOTION,
+  PillMotion,
+  TAB_BAR_MOTION,
+  springFromResponse,
+  stepSpring,
+  type PillFrame,
+  type PillHost,
+  type PillMotionConfig,
+  type PillRect,
+} from "./pillMotion";
 
 // Compact master geometry: 4 tabs, indicator 56 × 32 at x = 12.5 + 81·i, y = 10.
 const rect = (i: number): PillRect => ({ x: 12.5 + 81 * i, y: 10, w: 56, h: 32 });
 
-function setup(opts: { reduced?: boolean } = {}) {
+function setup(opts: { reduced?: boolean; config?: PillMotionConfig; rect?: (i: number) => PillRect } = {}) {
+  const measureRect = opts.rect ?? rect;
   let t = 0;
   const queue: (() => void)[] = [];
   const frames: PillFrame[] = [];
   const indicated: number[] = [];
   const host: PillHost = {
-    measure: (i) => (i >= 0 && i < 4 ? rect(i) : null),
+    measure: (i) => (i >= 0 && i < 4 ? measureRect(i) : null),
     count: () => 4,
     isEnabled: () => true,
     render: (f) => frames.push(f),
@@ -22,7 +33,7 @@ function setup(opts: { reduced?: boolean } = {}) {
       queue.length = 0;
     },
   };
-  const motion = new PillMotion(host);
+  const motion = new PillMotion(host, opts.config);
   /** Advance the clock in 16 ms frames. */
   const advance = (ms: number) => {
     for (let elapsed = 0; elapsed < ms; elapsed += 16) {
@@ -52,7 +63,7 @@ describe("PillMotion", () => {
   test("jumpTo places the pill on the anchor without animation", () => {
     const { motion, last, indicated } = setup();
     motion.jumpTo(1);
-    expect(last()).toEqual({ ...rect(1), opacity: 1 });
+    expect(last()).toEqual({ ...rect(1), opacity: 1, lift: 0 });
     expect(indicated).toEqual([1]);
     expect(motion.mode).toBe("idle");
   });
@@ -84,7 +95,7 @@ describe("PillMotion", () => {
     expect(swapFrame).toBeGreaterThan(0);
     expect(indicated).toEqual([0, 2]);
 
-    expect(last()).toEqual({ ...rect(2), opacity: 1 });
+    expect(last()).toEqual({ ...rect(2), opacity: 1, lift: 0 });
   });
 
   test("the leading edge leads, the trailing edge lags 40 ms", () => {
@@ -129,7 +140,7 @@ describe("PillMotion", () => {
     expect(target).toBe(2);
     motion.endDrag(target);
     advance(600);
-    expect(last()).toEqual({ ...rect(2), opacity: 1 });
+    expect(last()).toEqual({ ...rect(2), opacity: 1, lift: 0 });
   });
 
   test("cancel returns to the origin tab", () => {
@@ -140,7 +151,7 @@ describe("PillMotion", () => {
     advance(200);
     motion.cancelDrag(1);
     advance(600);
-    expect(last()).toEqual({ ...rect(1), opacity: 1 });
+    expect(last()).toEqual({ ...rect(1), opacity: 1, lift: 0 });
   });
 
   test("reduced motion: no travel or stretch, instant switch with a 150 ms fade-in", () => {
@@ -152,5 +163,56 @@ describe("PillMotion", () => {
     expect(last().opacity).toBe(0);
     advance(160);
     expect(last().opacity).toBe(1);
+  });
+});
+
+describe("iOS lens (IOS_LENS_MOTION)", () => {
+  // `Tab Bar/iOS`: tabs 70.5 × 54 inside 4 px padding.
+  const lensRect = (i: number): PillRect => ({ x: 4 + 70.5 * i, y: 4, w: 70.5, h: 54 });
+
+  test("springFromResponse converts SwiftUI response / damping to stiffness", () => {
+    expect(springFromResponse(0.32, 0.82).stiffness).toBeCloseTo((2 * Math.PI / 0.32) ** 2, 6);
+    expect(IOS_LENS_MOTION.tap).toEqual(springFromResponse(0.32, 0.82));
+    expect(IOS_LENS_MOTION.drag).toEqual(springFromResponse(0.15, 0.86));
+    // Same timing rules as the pill.
+    expect(IOS_LENS_MOTION.tintSwapAt).toBe(TAB_BAR_MOTION.tintSwapAt);
+    expect(IOS_LENS_MOTION.cancelDistance).toBe(TAB_BAR_MOTION.cancelDistance);
+    expect(IOS_LENS_MOTION.holdMs).toBe(120);
+  });
+
+  test("hold: the lens scales 1.15× in 120 ms and reports lift", () => {
+    const { motion, advance, last } = setup({ config: IOS_LENS_MOTION, rect: lensRect });
+    motion.jumpTo(0);
+    expect(last().lift).toBe(0);
+    motion.setHold(true);
+    advance(130);
+    expect(last().w).toBeCloseTo(70.5 * 1.15, 3);
+    expect(last().h).toBeCloseTo(54 * 1.15, 3);
+    // Grows around its centre.
+    expect(last().x + last().w / 2).toBeCloseTo(4 + 70.5 / 2, 3);
+    expect(last().lift).toBe(1);
+    motion.setHold(false);
+    advance(130);
+    expect(last()).toEqual({ ...lensRect(0), opacity: 1, lift: 0 });
+  });
+
+  test("tap travel stretches at most × 1.3 and settles on the target", () => {
+    const { motion, advance, frames, last, indicated } = setup({ config: IOS_LENS_MOTION, rect: lensRect });
+    motion.jumpTo(0);
+    frames.length = 0;
+    motion.travelTo(3);
+    advance(800);
+    const widest = Math.max(...frames.map((f) => f.w));
+    expect(widest).toBeGreaterThan(70.5);
+    expect(widest).toBeLessThanOrEqual(70.5 * 1.3 + 0.01);
+    expect(last()).toEqual({ ...lensRect(3), opacity: 1, lift: 0 });
+    expect(indicated[indicated.length - 1]).toBe(3);
+  });
+
+  test("the config can be swapped (platform switch)", () => {
+    const { motion } = setup();
+    expect(motion.config).toBe(TAB_BAR_MOTION);
+    motion.config = IOS_LENS_MOTION;
+    expect(motion.config.holdScale).toBe(1.15);
   });
 });
