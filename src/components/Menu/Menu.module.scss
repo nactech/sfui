@@ -1,0 +1,323 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → M/A2 "Menu / Android + Web" (zmlSQ), masters `Menu/Android+Web` (oSxWa) and
+// `Menu/Android+Web Submenu` (wiyxq).
+//
+// Panel 260 wide, r30, padding 10 0, glass. Rows 44 high: a full-width state-layer band (`.item`,
+// padding 0 6) around an inset lens (`.lens`, r14, padding 0 14 0 22) with a 36px icon slot.
+// Quick row: 60 high, padding 0 6, three equal r16 buttons (icon 20 over a 13/600 label, gap 8).
+// Separators: padding 12 26, 1px line. Group label: padding 2 20 6 28, 13/400 muted.
+// M3 state layers: hover 8%, pressed 10%, keyboard focus 10% + 2px focus ring.
+
+.panel {
+  // Values from the masters that have no --sf token.
+  --_panel-fill: #2c2c2e9e; // glass fill of the menu masters (darker/denser than --sf-glass-fill)
+  --_panel-rim: #ffffff1f; // 1px rim, white 12%
+  --_panel-shadow: #00000059; // drop shadow 0 16 48, black 35%
+  --_panel-blur: #{rem(15)}; // backdrop blur 15 (token --sf-glass-blur is 24)
+  --_fg: #ffffff; // labels and icons are pure white in the masters (--sf-fg-default is #F4F4F5)
+  --_fg-chevron: #ffffffb3; // submenu chevron, white 70%
+  --_fg-group: #ebebf599; // "Sort by" group caption
+  --_separator: #ffffff24; // separator line, white 14%
+  --_danger: #ff453a; // destructive label + icon
+  // State layers (hex values exist as tokens).
+  --_layer-hover: var(--sf-glass-ghost-pressed); // #FFFFFF14 — hover 8%
+  --_layer-pressed: var(--sf-glass-highlight-soft); // #FFFFFF1A — pressed / keyboard focus 10%
+
+  @include glass(var(--_panel-fill), var(--_panel-rim));
+  -webkit-backdrop-filter: blur(var(--_panel-blur));
+  backdrop-filter: blur(var(--_panel-blur));
+  box-shadow:
+    inset 0 1px 0 var(--sf-glass-highlight),
+    0 rem(16) rem(48) var(--_panel-shadow);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: rem(260);
+  max-width: calc(100vw - #{rem(16)});
+  border-radius: rem(30);
+  overflow: hidden;
+  color: var(--_fg);
+  font-family: var(--sf-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// Floating (Menu root): fixed under its anchor; height springs from the anchored edge.
+.floating {
+  position: fixed;
+  z-index: 1000;
+  transform-origin: top right;
+  animation: menu-enter var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-align="start"] {
+    transform-origin: top left;
+  }
+  &[data-placement="top"] {
+    transform-origin: bottom right;
+  }
+  &[data-placement="top"][data-align="start"] {
+    transform-origin: bottom left;
+  }
+
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.viewport {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+// Submenu layers are portaled here; `contents` keeps them in the viewport's flow.
+.sub-host {
+  display: contents;
+}
+
+.layer {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: rem(10) 0;
+
+  &[hidden] {
+    display: none;
+  }
+
+  // Outgoing view of the shared-axis transition: out of flow so the panel measures the incoming one.
+  &[data-state="exiting"] {
+    position: absolute;
+    inset: 0 0 auto;
+    pointer-events: none;
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-label {
+  @include text(13, 400);
+  letter-spacing: rem(-0.1);
+  color: var(--_fg-group);
+  padding: rem(2) rem(20) rem(6) rem(28);
+  white-space: nowrap;
+}
+
+.separator {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: rem(12) rem(26);
+}
+
+.separator-line {
+  display: block;
+  height: 1px;
+  background-color: var(--_separator);
+}
+
+/* ── list rows ── */
+
+.item {
+  @include button-reset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 100%;
+  height: rem(44);
+  padding: 0 rem(6);
+  color: var(--_fg);
+  // M3 state layer: a full-width band, clipped by the panel's rounded corners.
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:focus {
+    outline: none;
+  }
+
+  &:not([aria-disabled="true"]) {
+    @include hover {
+      background-color: var(--_layer-hover);
+    }
+
+    &:active {
+      background-color: var(--_layer-pressed);
+    }
+  }
+
+  &:focus-visible {
+    background-color: var(--_layer-pressed);
+  }
+
+  &:focus-visible .lens {
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: rem(-2);
+  }
+
+  &[data-destructive] {
+    color: var(--_danger);
+  }
+
+  &[aria-checked="true"] {
+    color: var(--sf-accent-default);
+
+    .label {
+      font-weight: 500;
+    }
+  }
+
+  &[aria-disabled="true"] {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.lens {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0 rem(14) 0 rem(22);
+  border-radius: rem(14);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: rem(36);
+  height: 100%;
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+  }
+}
+
+.label {
+  @include text(17, 400);
+  flex: 1 1 0;
+  min-width: 0;
+  letter-spacing: rem(-0.4);
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--_fg-chevron);
+
+  svg {
+    width: rem(16);
+    height: rem(16);
+  }
+}
+
+// Back row of a submenu: "← Share", title 17/600.
+.back .label {
+  font-weight: 600;
+}
+
+/* ── quick actions ── */
+
+.quick-row {
+  box-sizing: border-box;
+  display: flex;
+  flex-shrink: 0;
+  padding: 0 rem(6);
+}
+
+.quick-action {
+  @include button-reset;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: rem(8);
+  min-width: 0;
+  height: rem(60);
+  border-radius: rem(16);
+  color: var(--_fg);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:focus {
+    outline: none;
+  }
+
+  &:not([aria-disabled="true"]) {
+    @include hover {
+      background-color: var(--_layer-hover);
+    }
+
+    &:active {
+      background-color: var(--_layer-pressed);
+    }
+  }
+
+  // Row 6: 10% layer + 2px ring drawn inside the rounded button.
+  &:focus-visible {
+    background-color: var(--_layer-pressed);
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: rem(-2);
+  }
+
+  &[aria-disabled="true"] {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.quick-icon {
+  display: flex;
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+  }
+}
+
+.quick-label {
+  @include text(13, 600);
+  max-width: 100%;
+  letter-spacing: rem(-0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
