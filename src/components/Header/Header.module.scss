@@ -1,0 +1,241 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → H/A2 "Header · Floating glass" · Android + Web (frame p6Vvp).
+// Rows: 1 Expanded, 2 Collapsed (title docks next to back), 3 Long title, 4 Selection mode.
+// The bar is two floating glass capsules (back[+title] | actions) with no bar background, so
+// content scrolls underneath them.
+
+.root {
+  // Drop shadow under the floating capsules (pen: 0 6 18 #00000059). Not a token.
+  --_shadow: #00000059;
+  // Above page content scrolling underneath. Not a token.
+  --_z: 10;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: rem(10);
+  min-width: 0;
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-sans);
+
+  &[data-sticky] {
+    position: sticky;
+    // Set by Header.tsx: −(height of everything below the bar), so only the bar stays pinned.
+    top: var(--_sticky-top, 0);
+    z-index: var(--_z);
+  }
+}
+
+// ── Bar row (48 tall) ─────────────────────────────────────────────────────
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: rem(16);
+  min-width: 0;
+  height: rem(48);
+}
+
+// Shared glass capsule. Pen: fill glass/fill, 1px glass/rim, inset top highlight (soft),
+// shadow 0 6 18. Radius 24 = half the height.
+%capsule {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: rem(48);
+  border: 1px solid var(--sf-glass-rim);
+  border-radius: rem(24);
+  background-color: var(--sf-glass-fill);
+  box-shadow:
+    inset 0 1px 0 var(--sf-glass-highlight-soft),
+    0 rem(6) rem(18) var(--_shadow);
+  -webkit-backdrop-filter: blur(var(--sf-glass-blur));
+  backdrop-filter: blur(var(--sf-glass-blur));
+}
+
+// Back (row 1: a 48 circle) that grows into "Back + Title" (row 2: padding 0 18 0 4, gap 6) when the
+// title docks. The title column animates 0fr → 1fr so the capsule widens instead of jumping.
+.dock {
+  @extend %capsule;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 rem(3); // 1 + 3 + 40 + 3 + 1 = 48 circle around the 40 back target
+  color: var(--sf-fg-default);
+  transition: padding var(--sf-duration-medium) var(--sf-ease-emphasized);
+
+  &[data-docked] {
+    padding: 0 rem(18) 0 rem(4);
+  }
+
+  // Collapsed without a back button: title alone in the capsule.
+  &[data-back="none"] {
+    padding: 0 rem(18);
+
+    .dock-title {
+      margin-inline-start: 0;
+    }
+  }
+
+  // Row 4 · Selection mode: "Close + Count" capsule is tonal glass with an accent rim,
+  // no highlight and no shadow in the master.
+  &[data-tone="tonal"] {
+    border-color: var(--sf-glass-rim-accent);
+    background-color: var(--sf-glass-tonal);
+    box-shadow: none;
+    color: var(--sf-accent-on-tonal);
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+// 40×40 back / close target inside the capsule (radius 20).
+.dock-button {
+  @include button-reset;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: rem(40);
+  height: rem(40);
+  border-radius: rem(20);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  @include hover {
+    background-color: var(--sf-glass-ghost-pressed);
+  }
+
+  &:active {
+    background-color: var(--sf-glass-ghost-pressed);
+  }
+
+  @include focus-ring(0);
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.dock-icon {
+  display: inline-flex;
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+  }
+}
+
+// Collapsible title column.
+.dock-title {
+  display: grid;
+  grid-template-columns: 0fr;
+  min-width: 0;
+  margin-inline-start: 0;
+  transition:
+    grid-template-columns var(--sf-duration-medium) var(--sf-ease-emphasized),
+    margin var(--sf-duration-medium) var(--sf-ease-emphasized),
+    opacity var(--sf-duration-fast) var(--sf-ease-standard);
+  opacity: 0;
+
+  [data-docked] > & {
+    grid-template-columns: 1fr;
+    margin-inline-start: rem(6);
+    opacity: 1;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+// Inline title (pen "Inline Title" / "Selection Title"): 18 / 600, one line; row 3 truncates with an ellipsis.
+.dock-text {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: rem(18);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Actions capsule: padding 0 4, 44×44 targets, no gap.
+.actions {
+  @extend %capsule;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+  padding: 0 rem(4);
+}
+
+.action {
+  @include button-reset;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: rem(44);
+  height: rem(44);
+  border-radius: rem(22);
+  color: var(--sf-fg-default);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  @include hover {
+    background-color: var(--sf-glass-ghost-pressed);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--sf-glass-ghost-pressed);
+  }
+
+  &[aria-expanded="true"] {
+    background-color: var(--sf-glass-ghost-pressed);
+  }
+
+  @include focus-ring(0);
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    background-color: transparent;
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.action-icon {
+  display: inline-flex;
+
+  svg {
+    width: rem(19);
+    height: rem(19);
+  }
+}
+
+// ── Large title (row 1, wraps in row 3) ───────────────────────────────────
+
+.title {
+  margin: 0;
+  font-size: rem(32);
+  font-weight: 600;
+  line-height: rem(37);
+  letter-spacing: rem(-1);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--sf-fg-muted);
+  font-size: rem(14);
+  font-weight: 400;
+  line-height: normal;
+}
