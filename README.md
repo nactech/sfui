@@ -12,11 +12,10 @@ The official Superdef UI kit for React based on Material Design 3 components, wr
 - custom CSS - for example, you can modify our components styles or redefine MD3 colors using @difhel's [Material Figma tokens to CSS converter](https://github.com/difhel/material-theme-figma-to-css)
 
 ## License
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa] [![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+SF UI is source-available, not open source. It is licensed under the [SF UI License](LICENSE.md):
 
-This UI library is licensed under a
-[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+- you may use it, including commercially, in mini-apps published on [sf.fm](https://sf.fm), as long as they follow the sf.fm rules;
+- any other use requires written permission from NAC Tech LLC;
+- contributions are welcome; by submitting one you assign its rights to NAC Tech LLC (see section 8 of the license).
 
-[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
-[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
-[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+Versions up to and including 0.0.11 (and all versions of `@nacteam/sdfui`) were published under [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/) and remain under it.
