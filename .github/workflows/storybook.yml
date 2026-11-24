@@ -13,7 +13,8 @@ permissions:
 
 concurrency:
   group: storybook-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a Pages deployment half-way; only superseded PR builds.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
