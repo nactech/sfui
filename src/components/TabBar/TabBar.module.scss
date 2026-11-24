@@ -1,0 +1,340 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → N/A2 "Tab bar / Android + Web", N/A3 "Tab bar / Motion", N/A4 "Tab bar / Web top placement".
+// Masters: `Tab Bar/Android+Web` (compact, < 600) and `Tab Bar/Web Top` (wide, labels beside icons).
+
+.root {
+  /* Values without a token (final.pen exports): */
+  --_shadow: #00000066; /* capsule drop shadow, 0 8 24 */
+  --_state-layer: #ffffff1f; /* N/A2 row 2 "Pressed": state layer on the indicator */
+  --_badge-fg: #ffffff; /* N/A2 row 3 "Badge": count text on danger/default */
+  --_z: 10;
+
+  box-sizing: border-box;
+  z-index: var(--_z);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: var(--sf-font-sans);
+  // The wrapper spans the viewport; only the capsule and slots take pointer input.
+  pointer-events: none;
+
+  // Default: floating at the bottom, centred, 16 from the edge (N/A4 row 4).
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(#{rem(16)} + env(safe-area-inset-bottom, 0rem));
+  padding-inline: rem(16);
+}
+
+.leading,
+.trailing {
+  display: none;
+  align-items: center;
+  gap: rem(12);
+  pointer-events: auto;
+}
+
+// ── Capsule (compact: Tab Bar/Android+Web) ────────────────────────────────
+
+.bar {
+  @include glass;
+  box-shadow:
+    inset 0 1px 0 var(--sf-glass-highlight-soft),
+    0 rem(8) rem(24) var(--_shadow);
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  width: rem(340);
+  max-width: 100%;
+  height: rem(72);
+  padding: rem(8);
+  border-radius: rem(36);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  // Vertical swipes still scroll the page; horizontal ones drive the pill.
+  touch-action: pan-y;
+}
+
+// The one shared indicator. Geometry is written by pillMotion.ts as rem custom properties.
+.pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: var(--_pill-w, 0);
+  height: var(--_pill-h, 0);
+  transform: translate(var(--_pill-x, 0), var(--_pill-y, 0));
+  opacity: var(--_pill-o, 0);
+  border-radius: var(--sf-radius-full);
+  background-color: var(--sf-accent-tonal);
+  pointer-events: none;
+  will-change: transform, width, height;
+}
+
+.item {
+  @include button-reset;
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: rem(4);
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+  -webkit-user-drag: none;
+}
+
+// 56 × 32 icon slot; the indicator inside it is what the pill measures and where press/focus show.
+.icon {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: rem(56);
+  height: rem(32);
+}
+
+.indicator {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sf-radius-full);
+  background-color: transparent;
+  transition: background-color 80ms var(--sf-ease-standard);
+  pointer-events: none;
+}
+
+.glyph {
+  position: relative;
+  display: inline-flex;
+  color: var(--sf-fg-muted);
+  transition: color 120ms var(--sf-ease-standard);
+
+  svg {
+    width: rem(22);
+    height: rem(22);
+  }
+}
+
+.label {
+  @include text(12, 500);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sf-fg-muted);
+  transition:
+    color 120ms var(--sf-ease-standard),
+    font-weight 120ms var(--sf-ease-standard);
+}
+
+.badge {
+  position: absolute;
+  top: rem(-5);
+  left: calc(100% - #{rem(7)});
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: rem(18);
+  height: rem(16);
+  padding: 0 rem(4);
+  border-radius: rem(8);
+  background-color: var(--sf-danger-default);
+  color: var(--_badge-fg);
+  font-family: var(--sf-font-sans);
+  font-size: rem(10);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge-dot {
+  top: rem(-2);
+  left: calc(100% - #{rem(4)});
+  min-width: 0;
+  width: rem(8);
+  height: rem(8);
+  padding: 0;
+  border-radius: var(--sf-radius-full);
+}
+
+// ── States ────────────────────────────────────────────────────────────────
+
+// Active look follows the pill (tint swaps at 50 % of travel), not the committed value.
+.item[data-highlighted] {
+  .glyph {
+    color: var(--sf-accent-on-tonal);
+  }
+  .label {
+    color: var(--sf-fg-default);
+    font-weight: 700;
+  }
+}
+
+.item:not([data-disabled]):not([data-highlighted]) {
+  @include hover {
+    .glyph,
+    .label {
+      color: var(--sf-fg-default);
+    }
+  }
+}
+
+// N/A2 row 2: state layer on the pressed tab's indicator (press feedback 80 ms).
+.item[data-pressed] .indicator {
+  background-color: var(--_state-layer);
+}
+
+// N/A2 row 4: 2 px focus ring on the indicator (web keyboard).
+.item:focus-visible .indicator {
+  outline: rem(2) solid var(--sf-focus-ring);
+  outline-offset: 0;
+}
+
+.item[data-disabled] {
+  cursor: not-allowed;
+
+  .glyph,
+  .label {
+    color: var(--sf-disabled-fg);
+  }
+}
+
+// ── Wide layout: Tab Bar/Web Top (labels beside icons) ───────────────────
+
+@mixin wide {
+  .bar {
+    align-items: center;
+    gap: rem(4);
+    width: auto;
+    height: rem(56);
+    padding: rem(6);
+    border-radius: rem(28);
+  }
+
+  .item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: rem(8);
+    height: rem(44);
+    padding: 0 rem(16);
+    border-radius: rem(22);
+  }
+
+  // The icon slot collapses to the glyph; the indicator now covers the whole item (pill = 105 × 44).
+  .icon {
+    position: static;
+    width: auto;
+    height: auto;
+  }
+
+  .glyph svg {
+    width: rem(18);
+    height: rem(18);
+  }
+
+  .label {
+    @include text(14, 500);
+    color: var(--sf-fg-default);
+  }
+
+  .item[data-highlighted] {
+    .glyph,
+    .label {
+      color: var(--sf-accent-on-tonal);
+    }
+    .label {
+      font-weight: 600;
+    }
+  }
+
+  .item[data-disabled] {
+    .glyph,
+    .label {
+      color: var(--sf-disabled-fg);
+    }
+  }
+}
+
+// N/A4: top navigation, sticky 16 from the edge; logo / account sit outside the capsule.
+@mixin top {
+  position: sticky;
+  top: rem(16);
+  bottom: auto;
+  inset-inline: auto;
+  padding-inline: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: rem(12);
+
+  .leading {
+    display: flex;
+    grid-column: 1;
+    justify-self: start;
+  }
+  .bar {
+    grid-column: 2;
+  }
+  .trailing {
+    display: flex;
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  // Row 2 "Top, left": logo, capsule, then search / account pushed to the end.
+  &[data-align="start"] {
+    display: flex;
+    justify-content: flex-start;
+
+    .trailing {
+      margin-inline-start: auto;
+    }
+  }
+}
+
+// Position: top from 600 px (auto) or always (top).
+.root[data-placement="top"] {
+  @include top;
+}
+
+// Layout: wide from 600 px, or forced; the top placement is wide unless forced compact.
+.root[data-layout="wide"],
+.root[data-placement="top"]:not([data-layout="compact"]) {
+  @include wide;
+}
+
+@media (min-width: 37.5rem) {
+  .root[data-placement="auto"] {
+    @include top;
+  }
+
+  // N/A2 row 5: on wide web a bottom bar also shows labels beside icons.
+  .root:not([data-layout="compact"]) {
+    @include wide;
+  }
+}
+
+// Not pinned to the viewport: render in flow (previews, custom shells).
+.root[data-pinned="false"] {
+  position: relative;
+  inset: auto;
+  padding-inline: 0;
+}
+
+@include reduced-motion {
+  .indicator,
+  .glyph,
+  .label {
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+}
