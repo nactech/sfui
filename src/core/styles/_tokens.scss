@@ -77,6 +77,13 @@
     --sf-font-sans: "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --sf-font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
+    /* iOS implementation — real system font on Apple devices (SF Pro), system colours the iOS frames use */
+    --sf-font-ios: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter", system-ui, sans-serif;
+    --sf-ios-red: #ff453a;
+    --sf-ios-label: #ffffff;
+    --sf-ios-secondary-label: #ebebf599;
+    --sf-ios-separator: #ffffff24;
+
     /* Motion */
     --sf-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --sf-ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
