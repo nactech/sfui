@@ -67,7 +67,7 @@ npm run build       # Rollup: ESM + CJS + types into dist/
 
 The source of truth for every component is the finalized frames in `final.pen`; stories mirror those frames.
 
-The Storybook from `main` is published to **https://nactech.github.io/sfui/** on every push.
+Every push to `main` publishes the documentation site to **https://nactech.github.io/sfui/** and Storybook to **https://nactech.github.io/sfui/storybook/**. The site lives in `site/` (`npm run site:dev`).
 
 ## License
 SF UI is source-available, not open source. It is licensed under the [SF UI License](LICENSE.md):

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, type CSSProperties } from "react";
-import { Download, Ellipsis, FolderInput, Share2, Trash2 } from "lucide-react";
+import { Download, Ellipsis, FolderInput, Share, Trash2 } from "lucide-react";
 import SelectionBar from "./index";
 import Button from "../Button";
 import Checkbox from "../Checkbox";
@@ -23,7 +23,7 @@ const desktop: CSSProperties = {
 
 const actions = (
   <>
-    <Button variant="secondary" size="s" leadingIcon={<Share2 />}>
+    <Button variant="secondary" size="s" leadingIcon={<Share />}>
       Share
     </Button>
     <Button variant="secondary" size="s" leadingIcon={<FolderInput />}>

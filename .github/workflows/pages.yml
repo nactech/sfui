@@ -1,7 +1,9 @@
-name: Storybook
+name: Site
 
-# Builds Storybook on every pull request and publishes it to GitHub Pages
-# (https://nactech.github.io/sfui/) on every push to main.
+# Builds the documentation site and Storybook on every pull request and publishes both to
+# GitHub Pages on every push to main:
+#   https://nactech.github.io/sfui/            — documentation site (site/)
+#   https://nactech.github.io/sfui/storybook/  — Storybook
 on:
   push:
     branches: [main]
@@ -12,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: storybook-${{ github.ref }}
+  group: pages-${{ github.ref }}
   # Never cancel a Pages deployment half-way; only superseded PR builds.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -26,12 +28,15 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
-      - run: npx storybook build --quiet --output-dir storybook-static
+      - run: npm run site:build
+      - run: npx storybook build --quiet --output-dir site/dist/storybook
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
-          path: storybook-static
+          path: site/dist
 
   deploy:
     if: github.event_name != 'pull_request'

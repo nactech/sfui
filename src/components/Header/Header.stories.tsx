@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, type CSSProperties } from "react";
-import { Copy, Download, Ellipsis, FolderInput, Pencil, Share, Share2, Trash2 } from "lucide-react";
+import { Copy, Download, Ellipsis, FolderInput, Pencil, Share, Trash2 } from "lucide-react";
 import Header, { HeaderAction, PageHeader } from "./index";
 import Button from "../Button";
 import Menu, { MenuItem } from "../Menu";
@@ -52,7 +52,7 @@ const stubs = (
   </div>
 );
 
-const share = <HeaderAction aria-label="Share" icon={<Share2 />} />;
+const share = <HeaderAction aria-label="Share" icon={<Share />} />;
 const overflow = (
   <>
     <MenuItem icon={<Pencil />}>Rename</MenuItem>
@@ -69,7 +69,7 @@ const selectionOverflow = (
 );
 const selectionActions = (
   <>
-    <HeaderAction aria-label="Share" icon={<Share2 />} />
+    <HeaderAction aria-label="Share" icon={<Share />} />
     <HeaderAction aria-label="Delete" icon={<Trash2 />} />
   </>
 );
