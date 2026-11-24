@@ -5,7 +5,7 @@ import storybook from "eslint-plugin-storybook";
 import globals from "globals";
 
 export default tseslint.config(
-  { ignores: ["dist", "storybook-static", "node_modules", "types"] },
+  { ignores: ["dist", "storybook-static", "node_modules", "types", "site/dist"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -19,7 +19,7 @@ export default tseslint.config(
   },
   ...storybook.configs["flat/recommended"],
   {
-    files: ["*.config.{js,mjs,ts}", ".storybook/**"],
+    files: ["*.config.{js,mjs,ts}", ".storybook/**", "site/vite.config.ts", "site/plugins/**"],
     languageOptions: { globals: { ...globals.node } },
   },
 );

@@ -1,6 +1,7 @@
 dist
 node_modules
 public
+!/site/public/
 nactech-sfui-*.tgz
 storybook-static
 types

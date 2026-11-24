@@ -1,7 +1,7 @@
 import React from "react";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Share2, Trash2 } from "lucide-react";
+import { Share, Trash2 } from "lucide-react";
 
 import Header, { HeaderAction, PageHeader } from "./index";
 import { MenuItem } from "../Menu";
@@ -19,7 +19,7 @@ describe("Header", () => {
         title="Foggy Stickers"
         subtitle="24 stickers · updated today"
         onBack={onBack}
-        actions={<HeaderAction aria-label="Share" icon={<Share2 />} onClick={onShare} />}
+        actions={<HeaderAction aria-label="Share" icon={<Share />} onClick={onShare} />}
       />,
     );
 
@@ -114,7 +114,7 @@ describe("Header", () => {
           selectionCount={3}
           selectionActions={
             <>
-              <HeaderAction aria-label="Share" icon={<Share2 />} />
+              <HeaderAction aria-label="Share" icon={<Share />} />
               <HeaderAction aria-label="Delete" icon={<Trash2 />} />
             </>
           }
@@ -169,7 +169,7 @@ describe("Header", () => {
   test("HeaderAction disabled is not clickable", async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
-    render(<HeaderAction aria-label="Share" icon={<Share2 />} disabled onClick={onClick} />);
+    render(<HeaderAction aria-label="Share" icon={<Share />} disabled onClick={onClick} />);
     await user.click(screen.getByRole("button", { name: "Share" }));
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -183,7 +183,7 @@ describe("Header · iOS (H/A1, H/A3)", () => {
           title="Foggy Stickers"
           subtitle="24 stickers · updated today"
           onBack={() => {}}
-          actions={<HeaderAction aria-label="Share" icon={<Share2 />} />}
+          actions={<HeaderAction aria-label="Share" icon={<Share />} />}
           overflowMenu={<MenuItem>Rename</MenuItem>}
         />
       </ConfigProvider>,
