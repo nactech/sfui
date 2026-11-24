@@ -240,10 +240,18 @@ describe("List swipe actions", () => {
     expect(rowOf("Mr. Chilly")).toHaveAttribute("data-swipe", "closed");
   });
 
-  test("swiping left past half the reveal snaps open; a short swipe snaps back", () => {
+  test("swiping left past half the reveal snaps open; a short swipe snaps back", async () => {
     render(<Swipeable />);
     const row = rowOf("Mr. Chilly");
-    swipe(contentOf("Mr. Chilly"), 300, 270);
+    // A slow short swipe: the pause before release cancels any flick, so only the distance decides.
+    // (Without it, synthetic events that happen to land ≥4ms apart read as a fast flick and open the row.)
+    const el = contentOf("Mr. Chilly");
+    fireEvent.pointerDown(el, { pointerId: 1, clientX: 300, clientY: 20, pointerType: "touch", button: 0 });
+    for (const x of [292, 285, 278, 270]) {
+      fireEvent.pointerMove(el, { pointerId: 1, clientX: x, clientY: 20, pointerType: "touch" });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    fireEvent.pointerUp(el, { pointerId: 1, clientX: 270, clientY: 20, pointerType: "touch" });
     expect(row).toHaveAttribute("data-swipe", "closed");
     expect(row.style.getPropertyValue("--_offset")).toBe("0rem");
 
