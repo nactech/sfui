@@ -1,12 +1,28 @@
 import React from "react";
 import classes from "./Slider.module.scss";
 import { buildClassName } from "/@/core/util";
+import { usePlatform } from "/@/core/platform";
+import type { PlatformSetting } from "/@/core/platform";
+import SliderIOSView from "./SliderIOS";
 
-/** `m` = 44 (touch / default), `s` = 32 (dense web). */
+/** `m` = 44 (touch / default), `s` = 32 (dense web). Android + Web only — iOS has one size. */
 export type SliderSize = "m" | "s";
-/** `glass` is only for a slider floating over content (photo, video). */
+/**
+ * `glass` is only for a slider floating over content (photo, video).
+ * Android + Web: the bar itself turns to glass. iOS: the slider sits in a glass panel (row "Over content").
+ */
 export type SliderVariant = "solid" | "glass";
 
+/**
+ * One component, two implementations (resolved with `usePlatform(platform)`):
+ * - Android + Web (R/E1): the whole bar is the control, the fill is the handle, value text inside the fill.
+ * - iOS (R/E2): thin native track, a glass lens that carries the value and grows while dragging,
+ *   tick marks for `steps`, optional min / max icons.
+ *
+ * Platform-specific props (ignored on the other platform):
+ * - Android + Web only: `size`, `icon`, `maxLabel`.
+ * - iOS only: `leadingIcon`, `trailingIcon`.
+ */
 export interface SliderProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, "defaultValue" | "onChange" | "children"> {
   ref?: React.Ref<HTMLDivElement>;
@@ -28,18 +44,27 @@ export interface SliderProps
   disabled?: boolean;
   /** Accessible name (`aria-label`). The design has no visible label. */
   label?: string;
-  /** Leading icon inside the fill (Lucide icon element). */
+  /** Leading icon inside the fill (Lucide icon element). Android + Web only; on iOS use `leadingIcon`. */
   icon?: React.ReactNode;
-  /** Value text drawn in the fill (default: the number). */
+  /** Value text drawn in the fill (Android + Web) or in the lens (iOS). Default: the number. Keep it short on iOS. */
   formatValue?: (value: number) => React.ReactNode;
   /** `aria-valuetext`. Defaults to `formatValue(value)` when it returns a string/number. */
   getValueText?: (value: number) => string;
   /** Draw the value text. Default `true`. */
   showValue?: boolean;
-  /** Trailing label in the empty part of the track. Default: `max`. `null` hides it. Continuous mode only. */
+  /**
+   * Trailing label in the empty part of the track. Default: `max`. `null` hides it. Continuous mode only.
+   * Android + Web only (iOS has no max label: the lens carries the value).
+   */
   maxLabel?: React.ReactNode;
-  /** Segment label in stepped mode. Default: the step number. */
+  /** Segment label (Android + Web) / tick label (iOS) in stepped mode. Default: the step number. */
   formatStep?: (step: number) => React.ReactNode;
+  /** Platform implementation. Omitted / `auto`: nearest `ConfigProvider`, else the user agent. */
+  platform?: PlatformSetting;
+  /** iOS only: decorative icon before the track (min end, e.g. Lucide `<Turtle />`). Ignored on Android + Web. */
+  leadingIcon?: React.ReactNode;
+  /** iOS only: decorative icon after the track (max end, e.g. Lucide `<Rabbit />`). Ignored on Android + Web. */
+  trailingIcon?: React.ReactNode;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -89,6 +114,9 @@ const Slider = ({
   showValue = true,
   maxLabel,
   formatStep,
+  platform: platformProp,
+  leadingIcon,
+  trailingIcon,
   className,
   style,
   onKeyDown,
@@ -98,6 +126,9 @@ const Slider = ({
   onPointerCancel,
   ...rest
 }: SliderProps) => {
+  const platform = usePlatform(platformProp);
+  const ios = platform === "ios";
+
   // Stepped mode works on the steps sorted ascending; the segments are drawn in that order.
   const stepList = steps && steps.length > 0 ? [...new Set(steps)].sort((a, b) => a - b) : null;
   const stepped = stepList !== null;
@@ -116,6 +147,9 @@ const Slider = ({
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const fillRef = React.useRef<HTMLDivElement | null>(null);
   const valueRef = React.useRef<HTMLSpanElement | null>(null);
+  // iOS: the track and the 56-wide lens wrap (its half is the inset the lens centre keeps from the ends).
+  const trackRef = React.useRef<HTMLDivElement | null>(null);
+  const lensWrapRef = React.useRef<HTMLDivElement | null>(null);
   const latest = React.useRef(value);
   latest.current = value;
   const grabOffset = React.useRef(0);
@@ -138,6 +172,8 @@ const Slider = ({
   const span = max - min || 1;
   const pct = clamp((value - min) / span, 0, 1);
   const index = stepList ? stepList.indexOf(value) : -1;
+  // iOS ticks are evenly spaced, so a stepped lens sits at index / (n - 1).
+  const lensPct = stepList ? (stepList.length > 1 ? index / (stepList.length - 1) : 0) : pct;
 
   // ---- Geometry (continuous): fill width = minFill + (trackWidth - minFill) * pct ----
   const geometry = () => {
@@ -149,7 +185,22 @@ const Slider = ({
     return { rect, minFill };
   };
 
+  // ---- Geometry (iOS): lens centre = inset + (trackWidth - 2 * inset) * pct ----
+  const iosGeometry = () => {
+    const track = trackRef.current;
+    if (!track) return null;
+    const rect = track.getBoundingClientRect();
+    const inset = (lensWrapRef.current?.offsetWidth ?? 0) / 2;
+    return { rect, inset, usable: rect.width - 2 * inset };
+  };
+
   const valueFromX = (clientX: number) => {
+    if (ios) {
+      const g = iosGeometry();
+      if (!g) return latest.current;
+      const p = g.usable > 0 ? clamp((clientX - g.rect.left - g.inset) / g.usable, 0, 1) : 0;
+      return stepList ? stepList[Math.round(p * (stepList.length - 1))] : min + p * span;
+    }
     const g = geometry();
     if (!g) return latest.current;
     const { rect, minFill } = g;
@@ -165,7 +216,7 @@ const Slider = ({
 
   // Low value: when the value text no longer fits inside the fill, it moves outside (row 6).
   React.useLayoutEffect(() => {
-    if (stepped || !showValue) return;
+    if (ios || stepped || !showValue) return;
     const el = rootRef.current;
     const fill = fillRef.current;
     const text = valueRef.current;
@@ -181,12 +232,14 @@ const Slider = ({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [stepped, showValue, pct, value, size, icon]);
+  }, [ios, stepped, showValue, pct, value, size, icon]);
 
   // ---- Pointer: drag anywhere on the bar, click to jump, grabbing the grip does not jump ----
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     onPointerDown?.(e);
     if (e.defaultPrevented || disabled || (e.pointerType === "mouse" && e.button !== 0)) return;
+    // iOS: the min / max icons are decoration, like UISlider's value images — tapping them does nothing.
+    if (ios && e.target instanceof Element && e.target.closest("[data-slider-icon]")) return;
     const el = e.currentTarget;
     e.preventDefault(); // no text selection; focus manually below
     el.focus({ preventScroll: true });
@@ -196,7 +249,15 @@ const Slider = ({
       // Synthetic / already-released pointer: dragging still works while over the element.
     }
     grabOffset.current = 0;
-    const g = geometry();
+    if (ios) {
+      // Grabbing the lens does not jump; anywhere else on the track jumps there.
+      const g = iosGeometry();
+      if (g) {
+        const centre = g.rect.left + g.inset + g.usable * lensPct;
+        if (Math.abs(e.clientX - centre) <= g.inset) grabOffset.current = centre - e.clientX;
+      }
+    }
+    const g = ios ? null : geometry();
     if (g && !stepped) {
       const edge = g.rect.left + g.minFill + (g.rect.width - g.minFill) * pct;
       const zone = g.rect.height / 2;
@@ -304,7 +365,8 @@ const Slider = ({
     "aria-valuetext": valueText,
     "aria-orientation": "horizontal" as const,
     "aria-disabled": disabled || undefined,
-    "data-size": size,
+    "data-platform": platform,
+    "data-size": ios ? undefined : size,
     "data-variant": variant,
     "data-dragging": dragging || undefined,
     onKeyDown: handleKeyDown,
@@ -313,6 +375,26 @@ const Slider = ({
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
   };
+
+  if (ios) {
+    return (
+      <SliderIOSView
+        rootProps={shared}
+        className={className}
+        style={style}
+        pct={lensPct}
+        trackRef={trackRef}
+        lensWrapRef={lensWrapRef}
+        steps={stepList}
+        index={index}
+        formatStep={formatStep}
+        showValue={showValue}
+        formatted={formatted}
+        leadingIcon={leadingIcon}
+        trailingIcon={trailingIcon}
+      />
+    );
+  }
 
   if (stepList) {
     return (

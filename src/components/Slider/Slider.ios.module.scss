@@ -1,0 +1,306 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// R/E2 Slider · Fill & lens — iOS implementation (final.pen, frame OjKFn;
+// masters dgtIW Continuous, S5s6g Stepped, Z6frH With Icons).
+// Native-feeling thin track; the knob is a glass lens that carries the value. While dragging the lens
+// grows and magnifies the track under it. Steps snap to tick marks. No hover styling on iOS.
+
+.root {
+  // Not in the token table:
+  --_lens-fill: #ffffff24; // white @ 14% — lens glass
+  --_lens-rim: #ffffff66; // white @ 40% — lens rim
+  --_lens-highlight: #ffffff80; // white @ 50% — lens top highlight
+  --_lens-shadow: #00000080; // black @ 50% — lens drop shadow (the design draws one)
+
+  // Row 1 · Rest
+  --_track-h: #{rem(6)};
+  --_under-h: var(--_track-h);
+  --_lens-w: #{rem(52)};
+  --_lens-h: #{rem(32)};
+  --_lens-r: #{rem(16)};
+  --_value-size: #{rem(14)};
+  // Half of the 56 lens wrap: the lens centre travels from inset to width − inset, never past the ends.
+  --_inset: #{rem(28)};
+
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: rem(12);
+  min-width: rem(120);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  font-family: var(--sf-font-ios);
+
+  // The focus ring is drawn on the lens (row 3), not around the whole control.
+  &:focus-visible {
+    outline: none;
+  }
+
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  // Row 2 · Dragging: the lens grows (52×32 → 68×44) and the track under it is magnified (6 → 10).
+  &[data-dragging] {
+    --_under-h: #{rem(10)};
+    --_lens-w: #{rem(68)};
+    --_lens-h: #{rem(44)};
+    --_lens-r: #{rem(22)};
+    --_value-size: #{rem(17)};
+
+    cursor: grabbing;
+  }
+}
+
+.body {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: rem(6);
+}
+
+.track {
+  --_x: calc(var(--_inset) + (100% - 2 * var(--_inset)) * var(--_pct, 0));
+
+  position: relative;
+  height: rem(40);
+}
+
+.rail,
+.active {
+  position: absolute;
+  top: 50%;
+  height: var(--_track-h);
+  transform: translateY(-50%);
+}
+
+.rail {
+  inset-inline: 0;
+  border-radius: rem(3);
+  background-color: var(--sf-surface-3);
+}
+
+// Fill up to the lens centre (the lens covers the seam).
+.active {
+  left: 0;
+  width: var(--_x);
+  border-radius: rem(3) 0 0 rem(3);
+  background-color: var(--sf-accent-default);
+  transition: width var(--sf-duration-medium) var(--sf-ease-standard);
+}
+
+.lens-wrap {
+  position: absolute;
+  top: 0;
+  left: var(--_x);
+  width: calc(2 * var(--_inset));
+  height: 100%;
+  margin-left: calc(-1 * var(--_inset));
+  transition: left var(--sf-duration-medium) var(--sf-ease-standard);
+}
+
+// The track seen through the lens — magnified while dragging.
+.under {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: var(--_under-h);
+  transform: translateY(-50%);
+  background-image: linear-gradient(
+    90deg,
+    var(--sf-accent-default) 0%,
+    var(--sf-accent-default) 50%,
+    var(--sf-surface-3) 50%,
+    var(--sf-surface-3) 100%
+  );
+  transition: height var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+.lens {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-width: var(--_lens-w);
+  height: var(--_lens-h);
+  padding-inline: rem(8);
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--_lens-rim);
+  border-radius: var(--_lens-r);
+  background-color: var(--_lens-fill);
+  box-shadow:
+    inset 0 1px 0 var(--_lens-highlight),
+    0 rem(4) rem(12) var(--_lens-shadow);
+  -webkit-backdrop-filter: blur(rem(12));
+  backdrop-filter: blur(rem(12));
+  color: var(--sf-fg-default);
+  transition:
+    min-width var(--sf-duration-medium) var(--sf-ease-spring),
+    height var(--sf-duration-medium) var(--sf-ease-spring),
+    border-radius var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+.lens-value {
+  font-size: var(--_value-size);
+  font-weight: 600;
+  line-height: normal;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: font-size var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+// Continuous drag: the lens follows the finger 1:1. Stepped keeps the glide between ticks.
+.root[data-dragging]:not([data-stepped]) {
+  .active,
+  .lens-wrap {
+    transition: none;
+  }
+}
+
+// Row 3 · Focus (iPad keyboard): 2 px ring on the lens instead of its rim.
+.root:focus-visible .lens {
+  border-color: transparent;
+  outline: rem(2) solid var(--sf-focus-ring);
+  outline-offset: 0;
+}
+
+// ---------------------------------------------------------------- stepped (row 5)
+
+.ticks,
+.tick-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+// Tick centres line up with the lens centre at each step (inset − half the tick).
+.ticks {
+  padding-inline: calc(var(--_inset) - #{rem(1)});
+}
+
+.tick {
+  flex-shrink: 0;
+  width: rem(2);
+  height: rem(8);
+  border-radius: rem(1);
+  background-color: var(--sf-fg-subtle);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-active] {
+    background-color: var(--sf-accent-default);
+  }
+}
+
+.tick-labels {
+  padding-inline: calc(var(--_inset) - #{rem(20)});
+}
+
+.tick-label {
+  flex-shrink: 0;
+  width: rem(40);
+  font-size: rem(11);
+  font-weight: 400;
+  line-height: normal;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--sf-fg-subtle);
+  transition: color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-current] {
+    color: var(--sf-accent-default);
+  }
+}
+
+// ---------------------------------------------------------------- with icons (row 6)
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--sf-fg-muted);
+
+  svg {
+    width: rem(18);
+    height: rem(18);
+  }
+}
+
+// ---------------------------------------------------------------- row 4 · disabled — opaque, no opacity
+
+.root[aria-disabled="true"] {
+  .rail {
+    background-color: var(--sf-disabled-fill);
+  }
+  .active,
+  .tick[data-active] {
+    background-color: var(--sf-disabled-fg);
+  }
+  .under {
+    background-image: none;
+    background-color: var(--sf-disabled-fill);
+  }
+  .lens {
+    border-color: var(--sf-disabled-rim);
+    background-color: var(--sf-disabled-fill);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    color: var(--sf-disabled-fg);
+  }
+  .tick,
+  .tick-label,
+  .icon {
+    color: var(--sf-disabled-fg);
+  }
+  .tick {
+    background-color: var(--sf-disabled-fill);
+  }
+}
+
+// ---------------------------------------------------------------- over content → glass panel
+
+.root[data-variant="glass"] {
+  min-height: rem(60);
+  padding: 0 rem(18);
+  border: 1px solid var(--sf-glass-rim);
+  border-radius: rem(30);
+  background-color: var(--sf-glass-fill);
+  box-shadow: inset 0 1px 0 var(--sf-glass-highlight-soft);
+  -webkit-backdrop-filter: blur(rem(12));
+  backdrop-filter: blur(rem(12));
+
+  &[data-stepped] {
+    padding-block: rem(10);
+  }
+
+  &[aria-disabled="true"] {
+    border-color: var(--sf-disabled-rim);
+    background-color: var(--sf-disabled-glass);
+    box-shadow: none;
+  }
+}
+
+@include reduced-motion {
+  .active,
+  .lens-wrap,
+  .under,
+  .lens,
+  .lens-value,
+  .tick,
+  .tick-label {
+    transition: none;
+  }
+}
