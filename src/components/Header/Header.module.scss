@@ -239,3 +239,224 @@
   font-weight: 400;
   line-height: normal;
 }
+
+// ══ iOS implementation ═════════════════════════════════════════════════════
+// final.pen → H/A1 "Header / iOS" (frame AiKfF) and H/A3 "Header / Selection flow" (frame gQmek).
+// Masters `Header/iOS/Expanded`, `…/Collapsed`, `…/Browse`, `…/Selection`.
+// iOS 26 grammar: no bar at all. Back and actions are glass controls floating over content; the large title
+// lives in the content and collapses into a centred glass title pill. No hover styling here (touch);
+// `:active` is the pressed state and `:focus-visible` rings stay for iPad keyboards.
+
+// Glass control. Pen: fill glass/fill, 1px glass/rim, inset top highlight (soft), shadow 0 6 18
+// (the Actions capsule uses `drop-shadow(0 6 9)`, which pen equates to the same box-shadow).
+@mixin ios-glass {
+  box-sizing: border-box;
+  border: 1px solid var(--sf-glass-rim);
+  background-color: var(--sf-glass-fill);
+  box-shadow:
+    inset 0 1px 0 var(--sf-glass-highlight-soft),
+    0 rem(6) rem(18) var(--_shadow);
+  -webkit-backdrop-filter: blur(var(--sf-glass-blur));
+  backdrop-filter: blur(var(--sf-glass-blur));
+}
+
+.root[data-platform="ios"] {
+  gap: rem(8);
+  font-family: var(--sf-font-ios);
+
+  // Bar Row: 44 tall, three slots. The grid keeps the centre slot centred while it fits and lets it
+  // shrink (truncate) between back and actions when it doesn't (row 3).
+  .bar {
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, max-content) minmax(max-content, 1fr);
+    align-items: center;
+    column-gap: rem(12);
+    height: rem(44);
+  }
+
+  // Actions capsule: 44 tall, padding 0 4, 40×40 actions, icons 19.
+  .actions {
+    @include ios-glass;
+    height: rem(44);
+    margin-inline-start: 0;
+    padding: 0 rem(4);
+    border-radius: rem(22);
+  }
+
+  .action {
+    width: rem(40);
+    height: rem(40);
+    border-radius: rem(20);
+
+    &:active:not(:disabled),
+    &[aria-expanded="true"] {
+      background-color: var(--sf-glass-ghost-pressed);
+    }
+  }
+
+  // Large title: 34 / 700, tracking −0.8, line 39 (wraps in row 3).
+  .title {
+    font-size: rem(34);
+    font-weight: 700;
+    line-height: rem(39);
+    letter-spacing: rem(-0.8);
+  }
+
+  // Subtitle: 15 / 400 muted.
+  .subtitle {
+    font-size: rem(15);
+  }
+}
+
+.ios-start,
+.ios-center,
+.ios-end {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ios-start {
+  justify-content: flex-start;
+}
+
+.ios-center {
+  justify-content: center;
+}
+
+.ios-end {
+  justify-content: flex-end;
+  gap: rem(8);
+}
+
+// Back: 44 glass circle, ChevronLeft 20.
+.ios-back {
+  @include button-reset;
+  @include ios-glass;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: rem(44);
+  height: rem(44);
+  border-radius: rem(22);
+  color: var(--sf-fg-default);
+  text-decoration: none;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:active {
+    background-color: var(--sf-glass-fill-pressed);
+  }
+
+  @include focus-ring(rem(2));
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.ios-back-icon {
+  display: inline-flex;
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+  }
+}
+
+// Title Pill (rows 2–3): 36 tall, radius 18, padding 0 16, 17 / 600, truncates.
+// With `collapsed="auto"` it is mounted hidden and scales/fades in once the large title scrolls away.
+.ios-pill {
+  @include ios-glass;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  height: rem(36);
+  padding: 0 rem(16);
+  border-radius: rem(18);
+  opacity: 0;
+  transform: scale(0.9);
+  visibility: hidden;
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-standard),
+    transform var(--sf-duration-medium) var(--sf-ease-spring),
+    visibility 0s linear var(--sf-duration-medium);
+
+  &[data-docked] {
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+    transition:
+      opacity var(--sf-duration-fast) var(--sf-ease-standard),
+      transform var(--sf-duration-medium) var(--sf-ease-spring),
+      visibility 0s;
+  }
+
+  @include reduced-motion {
+    transform: none;
+    transition: none;
+
+    &[data-docked] {
+      transition: none;
+    }
+  }
+}
+
+.ios-pill-text {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--sf-fg-default);
+  font-size: rem(17);
+  font-weight: 600;
+  line-height: normal;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Selection Title (row 4 / H/A3): plain 17 / 600 text, no pill.
+.ios-selection-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sf-fg-default);
+  font-size: rem(17);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Text buttons (Select, Cancel, Select All / Deselect All): glass capsule 44 tall, padding 0 16, 15 / 600.
+.ios-text-button {
+  @include button-reset;
+  @include ios-glass;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: rem(44);
+  padding: 0 rem(16);
+  border-radius: rem(22);
+  color: var(--sf-fg-default);
+  font-size: rem(15);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  // Select All / Deselect All: accent label.
+  &[data-tone="accent"] {
+    color: var(--sf-accent-default);
+  }
+
+  &:active {
+    background-color: var(--sf-glass-fill-pressed);
+  }
+
+  @include focus-ring(rem(2));
+
+  @include reduced-motion {
+    transition: none;
+  }
+}

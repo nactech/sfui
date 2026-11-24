@@ -1,0 +1,229 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → H/A3 "Header / Selection flow" (frame gQmek), master `Selection Toolbar/iOS` (RtAEo).
+// Steps 2–4: the tab bar capsule morphs into this toolbar while selecting; at 0 selected every control is
+// disabled (labels/icons disabled/fg on the unchanged glass), from 1 selected they enable.
+// Non-iOS platforms get the Android + Web tab-bar grammar (see `.root:not([data-platform="ios"])`).
+
+.root {
+  /* Values without a token (final.pen exports): */
+  --_shadow: #00000059; /* capsule drop shadow, 0 6 18 (pen: drop-shadow 0 6 9 on Actions, box-shadow on More) */
+  --_lens: #ffffff1a; /* N/A3 iOS lens fill, reused as the press highlight on an action */
+  --_state-layer: #ffffff1f; /* Android + Web: state layer on the pressed action (as TabBar row 2) */
+  --_z: 10;
+
+  box-sizing: border-box;
+  z-index: var(--_z);
+  min-width: 0; // let the capsule shrink on narrow screens instead of overflowing
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: rem(10);
+  font-family: var(--sf-font-ios);
+  // The wrapper spans the viewport; only the capsule and More take pointer input.
+  pointer-events: none;
+
+  // Pinned: bottom centre, 18 above the screen edge (H/A3 phone padding 0 14 18) or clear of the home
+  // indicator when the safe area is taller.
+  position: fixed;
+  inset-inline: 0;
+  bottom: max(#{rem(18)}, env(safe-area-inset-bottom, 0rem));
+  padding-inline: rem(14);
+
+  // "The tab bar capsule morphs into a selection toolbar": rise + settle in on mount.
+  animation: enter var(--sf-duration-medium) var(--sf-ease-spring) both;
+
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(#{rem(12)}) scale(0.96);
+  }
+}
+
+// Not pinned: render in flow (previews, custom shells).
+.root[data-pinned="false"] {
+  position: relative;
+  inset: auto;
+  padding-inline: 0;
+}
+
+@mixin glass-control {
+  box-sizing: border-box;
+  border: 1px solid var(--sf-glass-rim);
+  background-color: var(--sf-glass-fill);
+  box-shadow:
+    inset 0 1px 0 var(--sf-glass-highlight-soft),
+    0 rem(6) rem(18) var(--_shadow);
+  -webkit-backdrop-filter: blur(var(--sf-glass-blur));
+  backdrop-filter: blur(var(--sf-glass-blur));
+}
+
+// Actions: 62 tall, radius 31, padding 4, 290 wide (same footprint as `Tab Bar/iOS` Tabs).
+.capsule {
+  @include glass-control;
+  display: flex;
+  align-items: stretch;
+  flex: 0 1 auto;
+  width: rem(290);
+  min-width: 0;
+  height: rem(62);
+  padding: rem(4);
+  border-radius: rem(31);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+// Action: column, icon 22 over a 10 / 600 label, gap 2; fills its share of the capsule.
+.action {
+  @include button-reset;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: rem(2);
+  min-width: 0;
+  border-radius: rem(27); // lens radius (54 tall inside the 4 padding)
+  color: var(--sf-fg-default);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-tone="danger"] {
+    color: var(--sf-danger-default);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--_lens);
+  }
+
+  @include focus-ring(0);
+
+  &:disabled {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.icon {
+  display: inline-flex;
+
+  svg {
+    width: rem(22);
+    height: rem(22);
+  }
+}
+
+.label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: rem(10);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// More: 62 glass circle, Ellipsis 22.
+.more {
+  @include button-reset;
+  @include glass-control;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: rem(62);
+  height: rem(62);
+  border-radius: rem(31);
+  color: var(--sf-fg-default);
+  pointer-events: auto;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:active:not(:disabled),
+  &[aria-expanded="true"] {
+    background-color: var(--sf-glass-fill-pressed);
+  }
+
+  @include focus-ring(rem(2));
+
+  &:disabled {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+// ── Android + Web ─────────────────────────────────────────────────────────
+// No dedicated master: the same actions in the `Tab Bar/Android+Web` grammar (72 capsule, radius 36,
+// padding 8, Geist 12 / 500 labels, state layer on press, hover on pointer devices). The web selection
+// flow normally uses `SelectionBar` at the top instead.
+
+.root:not([data-platform="ios"]) {
+  bottom: calc(#{rem(16)} + env(safe-area-inset-bottom, 0rem));
+  gap: rem(12);
+  padding-inline: rem(16);
+  font-family: var(--sf-font-sans);
+
+  &[data-pinned="false"] {
+    bottom: auto;
+    padding-inline: 0;
+  }
+
+  .capsule {
+    width: rem(340);
+    height: rem(72);
+    padding: rem(8);
+    border-radius: rem(36);
+    box-shadow:
+      inset 0 1px 0 var(--sf-glass-highlight-soft),
+      0 rem(8) rem(24) var(--_shadow);
+  }
+
+  .action {
+    gap: rem(4);
+    border-radius: rem(28);
+
+    @include hover {
+      &:not(:disabled) {
+        background-color: var(--sf-glass-ghost-pressed);
+      }
+    }
+
+    &:active:not(:disabled) {
+      background-color: var(--_state-layer);
+    }
+  }
+
+  .label {
+    @include text(12, 500);
+  }
+
+  .more {
+    width: rem(72);
+    height: rem(72);
+    border-radius: rem(36);
+
+    @include hover {
+      &:not(:disabled) {
+        background-color: var(--sf-glass-fill-pressed);
+      }
+    }
+  }
+}

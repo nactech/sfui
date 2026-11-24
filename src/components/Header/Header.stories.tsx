@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, type CSSProperties } from "react";
-import { Copy, Download, Ellipsis, FolderInput, Pencil, Share2, Trash2 } from "lucide-react";
+import { Copy, Download, Ellipsis, FolderInput, Pencil, Share, Share2, Trash2 } from "lucide-react";
 import Header, { HeaderAction, PageHeader } from "./index";
 import Button from "../Button";
 import Menu, { MenuItem } from "../Menu";
@@ -121,6 +121,7 @@ export const Playground: Story = {
 
 /** Mirrors frame H/A2 (p6Vvp), rows 1–5. */
 export const Matrix: Story = {
+  parameters: { platform: "web" },
   render: () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       <span style={caption}>1 · Expanded</span>
@@ -188,6 +189,7 @@ export const Matrix: Story = {
 
 /** Rows 2 and 4 over a photo: the capsules are glass, content shows through between them. */
 export const OverContent: Story = {
+  parameters: { platform: "web" },
   render: () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       <div style={photoStage}>
@@ -243,6 +245,7 @@ export const AutoCollapse: Story = {
 
 /** H/A4 Android steps 2–4: contextual header; ⋮ → Select all flips to Deselect all. */
 export const SelectionMode: Story = {
+  parameters: { platform: "web" },
   render: function SelectionModeStory() {
     const total = 24;
     const [count, setCount] = useState(2);
@@ -272,6 +275,7 @@ export const SelectionMode: Story = {
 };
 
 export const WebPageHeader: Story = {
+  parameters: { platform: "web" },
   render: () => (
     <div style={{ ...stage, width: "48rem" }}>
       <PageHeader
@@ -283,4 +287,148 @@ export const WebPageHeader: Story = {
       {stubs}
     </div>
   ),
+};
+
+// ══ iOS (H/A1 "Header / iOS", frame AiKfF) ═══════════════════════════════════
+
+// Phone-width stage (390 pt) for the iOS rows.
+const iosStage: CSSProperties = { ...stage, width: "24.375rem" };
+const iosPhotoStage: CSSProperties = { ...photoStage, width: "24.375rem" };
+const iosCaption: CSSProperties = { ...caption, width: "24.375rem" };
+// iOS masters draw Lucide `share` (the iOS share glyph) and a horizontal `ellipsis`.
+const iosShare = <HeaderAction aria-label="Share" icon={<Share />} />;
+
+/** Mirrors frame H/A1 (AiKfF), rows 1–4, at phone width. */
+export const IOSMatrix: Story = {
+  parameters: { platform: "ios" },
+  render: () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <span style={iosCaption}>
+        <span>1 · Expanded</span>
+        <span style={{ textTransform: "none" }}>top of the screen</span>
+      </span>
+      <div style={iosStage}>
+        <Header title="Foggy Stickers" subtitle="24 stickers · updated today" onBack={() => {}} actions={iosShare} overflowMenu={overflow} />
+        {stubs}
+      </div>
+
+      <span style={iosCaption}>
+        <span>2 · Collapsed</span>
+        <span style={{ textTransform: "none" }}>content scrolls under glass</span>
+      </span>
+      <div style={iosPhotoStage}>
+        <Header title="Foggy Stickers" collapsed onBack={() => {}} actions={iosShare} overflowMenu={overflow} />
+      </div>
+
+      <span style={iosCaption}>
+        <span>3 · Long title</span>
+        <span style={{ textTransform: "none" }}>wraps expanded, truncates collapsed</span>
+      </span>
+      <div style={iosStage}>
+        <Header
+          title="Foggy San Francisco — Winter Edition"
+          subtitle="24 stickers · updated today"
+          onBack={() => {}}
+          actions={iosShare}
+          overflowMenu={overflow}
+        />
+        <Header
+          title="Foggy San Francisco — Winter Edition"
+          titleAs="h2"
+          collapsed
+          onBack={() => {}}
+          actions={iosShare}
+          overflowMenu={overflow}
+        />
+      </div>
+
+      <span style={iosCaption}>
+        <span>4 · Selection mode</span>
+        <span style={{ textTransform: "none" }}>edit mode from List</span>
+      </span>
+      <div style={iosPhotoStage}>
+        <Header
+          title="Foggy Stickers"
+          collapsed
+          selectionCount={3}
+          onCancelSelection={() => {}}
+          onSelectAll={() => {}}
+          selectionActions={selectionActions}
+        />
+      </div>
+    </div>
+  ),
+};
+
+/** Master `Header/iOS/Browse`: back + title pill + a "Select" text button (`onStartSelection`). */
+export const IOSBrowse: Story = {
+  parameters: { platform: "ios" },
+  render: () => (
+    <div style={iosPhotoStage}>
+      <Header title="Foggy Stickers" collapsed onBack={() => {}} onStartSelection={() => {}} />
+    </div>
+  ),
+};
+
+/** iOS `collapsed="auto"` + `sticky`: scroll and the large title collapses into the centred glass pill. */
+export const IOSAutoCollapse: Story = {
+  parameters: { platform: "ios" },
+  render: function IOSAutoCollapseStory() {
+    const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+    return (
+      <div ref={setScroller} style={{ ...iosStage, height: "40rem", overflowY: "auto", display: "block" }}>
+        <Header
+          title="Foggy San Francisco — Winter Edition"
+          subtitle="24 stickers · updated today"
+          onBack={() => {}}
+          actions={iosShare}
+          overflowMenu={overflow}
+          collapsed="auto"
+          sticky
+          scrollContainer={scroller}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginTop: "0.875rem" }}>
+          {Array.from({ length: 14 }, (_, i) => (
+            <div
+              key={i}
+              style={{
+                height: "4.5rem",
+                borderRadius: "0.875rem",
+                background: i % 3 === 0 ? photo : "var(--sf-surface-1)",
+                border: "1px solid var(--sf-rim-default)",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  },
+};
+
+/**
+ * iOS selection header on its own: Cancel + count + Select All ↔ Deselect All. The full H/A3 flow with the
+ * bottom toolbar is `Components/SelectionToolbar → IOS Selection Flow`.
+ */
+export const IOSSelectionMode: Story = {
+  parameters: { platform: "ios" },
+  render: function IOSSelectionModeStory() {
+    const total = 24;
+    const [count, setCount] = useState(0);
+    return (
+      <div style={iosStage}>
+        <Header
+          title="Foggy Stickers"
+          collapsed
+          selectionCount={count}
+          onCancelSelection={() => setCount(0)}
+          allSelected={count === total}
+          onSelectAll={() => setCount(total)}
+          onDeselectAll={() => setCount(0)}
+        />
+        <Button variant="tonal" size="s" onClick={() => setCount((c) => Math.min(total, c + 1))}>
+          Select one more
+        </Button>
+      </div>
+    );
+  },
 };
