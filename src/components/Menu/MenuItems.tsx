@@ -1,9 +1,9 @@
 import React, { useCallback, useContext, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import classes from "./Menu.module.scss";
 import { buildClassName } from "/@/core/util";
-import { MenuRadioContext, useMenuPanel, type MenuRadioContextValue } from "./context";
+import { MenuPanelContext, MenuRadioContext, useMenuPanel, type MenuRadioContextValue } from "./context";
 import { MenuLayer } from "./MenuPanel";
 
 type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onSelect" | "children" | "type" | "role">;
@@ -17,11 +17,15 @@ interface RowProps extends ButtonProps {
   trailing?: React.ReactNode;
   disabled?: boolean;
   destructive?: boolean;
+  /** iOS: draws the check in the leading check column (the icon stays). Ignored on Android / Web. */
+  checked?: boolean;
   children?: React.ReactNode;
   rowClassName?: string;
 }
 
-/** 44px row: full-width state-layer band (`.item`) around the inset lens (`.lens`, focus ring). */
+/** 44px row. Android / Web: full-width state-layer band (`.item`) around the inset lens (`.lens`, focus ring).
+ *  iOS: no band — `.lens` is the capsule the panel's press lens covers; a leading check column appears when
+ *  the view has checkable items. */
 function MenuRow({
   ref,
   role,
@@ -29,12 +33,14 @@ function MenuRow({
   trailing,
   disabled,
   destructive,
+  checked,
   children,
   className,
   rowClassName,
   onClick,
   ...rest
 }: RowProps) {
+  const ios = React.useContext(MenuPanelContext)?.platform === "ios";
   return (
     <button
       ref={ref}
@@ -54,7 +60,12 @@ function MenuRow({
       }}
       {...rest}
     >
-      <span className={classes.lens}>
+      <span className={classes.lens} data-menu-lens="">
+        {ios && (
+          <span className={classes.check} aria-hidden="true">
+            {checked && <Check />}
+          </span>
+        )}
         <span className={classes.icon} aria-hidden="true">
           {icon}
         </span>
@@ -167,17 +178,20 @@ export interface MenuRadioItemProps extends Omit<MenuItemProps, "destructive"> {
   closeOnSelect?: boolean;
 }
 
-/** Selected: the accent check replaces the icon, label turns accent at weight 500; no tonal fill. */
+/** Selected — Android / Web: the accent check replaces the icon, label turns accent at weight 500; no tonal fill.
+ *  iOS: a white check in the leading check column, icon and label unchanged. */
 export function MenuRadioItem({ value, icon, onSelect, closeOnSelect = false, onClick, ...rest }: MenuRadioItemProps) {
   const ctx = useMenuPanel("MenuRadioItem");
   const radio = useContext(MenuRadioContext);
   if (!radio) throw new Error("<MenuRadioItem> must be rendered inside <MenuRadioGroup>.");
   const checked = radio.value === value;
+  const ios = ctx.platform === "ios";
   return (
     <MenuRow
       role="menuitemradio"
       aria-checked={checked}
-      icon={checked ? <Check /> : icon}
+      checked={checked}
+      icon={checked && !ios ? <Check /> : icon}
       onClick={(event) => {
         onClick?.(event);
         onSelect?.(event);
@@ -197,7 +211,7 @@ export interface MenuCheckboxItemProps extends Omit<MenuItemProps, "destructive"
   closeOnSelect?: boolean;
 }
 
-/** Same look as a selected radio item: check replaces the icon while checked. */
+/** Same look as a selected radio item (Android / Web: check replaces the icon; iOS: leading check column). */
 export function MenuCheckboxItem({
   checked,
   defaultChecked = false,
@@ -211,11 +225,13 @@ export function MenuCheckboxItem({
   const ctx = useMenuPanel("MenuCheckboxItem");
   const [uncontrolled, setUncontrolled] = useState(defaultChecked);
   const isChecked = checked !== undefined ? checked : uncontrolled;
+  const ios = ctx.platform === "ios";
   return (
     <MenuRow
       role="menuitemcheckbox"
       aria-checked={isChecked}
-      icon={isChecked ? <Check /> : icon}
+      checked={isChecked}
+      icon={isChecked && !ios ? <Check /> : icon}
       onClick={(event) => {
         onClick?.(event);
         onSelect?.(event);
@@ -237,7 +253,7 @@ export interface MenuQuickActionsProps extends React.HTMLAttributes<HTMLDivEleme
   children?: React.ReactNode;
 }
 
-/** Top row of icon-over-label actions. One arrow-key stop vertically; ← → move inside it. */
+/** Top row of icon-over-label actions (iOS: the "medium" UIMenu row). One arrow-key stop vertically; ← → move inside it. */
 export function MenuQuickActions({ className, children, ...rest }: MenuQuickActionsProps) {
   return (
     <div role="group" data-menu-quick-row="" className={buildClassName(classes.quickRow, className)} {...rest}>
@@ -311,7 +327,7 @@ export interface MenuSubProps extends Omit<ButtonProps, "onSelect"> {
 }
 
 /** A chevron row that swaps the panel content for its children (shared axis X + height spring).
- *  The submenu starts with a Back row (`ArrowLeft` + label). Never opens a cascading side panel. */
+ *  The submenu starts with a Back row (`ArrowLeft` + label; iOS: `ChevronLeft`). Never opens a cascading side panel. */
 export function MenuSub({ ref, label, icon, disabled, children, onClick, ...rest }: MenuSubProps) {
   const ctx = useMenuPanel("MenuSub");
   const id = useId();
@@ -361,7 +377,7 @@ export function MenuSub({ ref, label, icon, disabled, children, onClick, ...rest
               rowClassName={classes.back}
               aria-label={`${label}, back`}
               data-menu-back=""
-              icon={<ArrowLeft />}
+              icon={ctx.platform === "ios" ? <ChevronLeft /> : <ArrowLeft />}
               onClick={(event) => ctx.goBack(event.detail === 0 ? "keyboard" : "pointer")}
             >
               {label}

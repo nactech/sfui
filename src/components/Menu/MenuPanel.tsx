@@ -2,16 +2,19 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "
 import { flushSync } from "react-dom";
 import classes from "./Menu.module.scss";
 import { buildClassName } from "/@/core/util";
+import { usePlatform, type PlatformSetting } from "/@/core/platform";
 import {
   MenuPanelContext,
   ROOT_VIEW,
   type MenuCloseReason,
   type MenuNavVia,
   type MenuPanelContextValue,
+  type MenuVariant,
   type MenuViewEntry,
 } from "./context";
 import { focusElement, getEnabledItems, getRows, itemText } from "./dom";
 import { canAnimate, runViewTransition, type MenuNavDirection } from "./motion";
+import { usePressLens } from "./pressLens";
 
 export interface MenuPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
@@ -19,6 +22,12 @@ export interface MenuPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Asked to close: an item was selected, Esc on the root view, or Tab. `Menu` wires this up;
    *  an inline panel can ignore it. */
   onRequestClose?: (reason: MenuCloseReason) => void;
+  /** `ios` renders the iOS 26 menu (final.pen M/A1): SF font, check column, sliding press lens, no hover.
+   *  `android` / `web` render M/A2. Default: nearest `ConfigProvider platform`, else the user agent. */
+  platform?: PlatformSetting;
+  /** iOS only (ignored on Android / Web): `pulldown` (260 wide, from a button) or `context`
+   *  (290 wide, under a lifted preview). Default `"pulldown"`. */
+  variant?: MenuVariant;
 }
 
 interface PendingTransition {
@@ -69,14 +78,21 @@ export function MenuLayer({ viewId, children }: { viewId: string; children?: Rea
   );
 }
 
-/** The static Black Glass menu panel (final.pen `Menu/Android+Web`): no trigger, no positioning.
- *  Owns in-place submenu navigation and keyboard roving focus. */
+/** The static Black Glass menu panel (final.pen `Menu/Android+Web`, `Menu/iOS`): no trigger, no positioning.
+ *  Owns in-place submenu navigation, keyboard roving focus and (iOS) the sliding press lens. */
 const MenuPanel = ({
   children,
   ref,
   className,
   onKeyDown,
   onRequestClose,
+  platform,
+  variant = "pulldown",
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onClickCapture,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
   ...rest
@@ -98,6 +114,11 @@ const MenuPanel = ({
 
   const currentEntry = path.length ? path[path.length - 1] : undefined;
   const currentView = currentEntry?.id ?? ROOT_VIEW;
+  const resolvedPlatform = usePlatform(platform);
+  const ios = resolvedPlatform === "ios";
+
+  const getActiveLayer = useCallback(() => layersRef.current.get(currentView), [currentView]);
+  const { lensRef, handlers: lens } = usePressLens({ enabled: ios, getLayer: getActiveLayer, viewKey: currentView });
 
   const setPanelRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -296,8 +317,8 @@ const MenuPanel = ({
   };
 
   const ctx = useMemo<MenuPanelContextValue>(
-    () => ({ currentView, exitingView, path, subHost, openSub, goBack, registerLayer, itemSelected }),
-    [currentView, exitingView, path, subHost, openSub, goBack, registerLayer, itemSelected],
+    () => ({ platform: resolvedPlatform, currentView, exitingView, path, subHost, openSub, goBack, registerLayer, itemSelected }),
+    [resolvedPlatform, currentView, exitingView, path, subHost, openSub, goBack, registerLayer, itemSelected],
   );
 
   return (
@@ -310,11 +331,34 @@ const MenuPanel = ({
         aria-label={currentEntry ? currentEntry.label : ariaLabel}
         aria-labelledby={currentEntry ? undefined : ariaLabelledBy}
         data-view={currentView === ROOT_VIEW ? "root" : "submenu"}
+        data-platform={resolvedPlatform}
+        data-variant={ios ? variant : undefined}
         className={buildClassName(classes.panel, className)}
         onKeyDown={handleKeyDown}
+        onPointerDown={(event) => {
+          onPointerDown?.(event);
+          if (!event.defaultPrevented) lens.onPointerDown(event);
+        }}
+        onPointerMove={(event) => {
+          onPointerMove?.(event);
+          lens.onPointerMove(event);
+        }}
+        onPointerUp={(event) => {
+          onPointerUp?.(event);
+          lens.onPointerUp(event);
+        }}
+        onPointerCancel={(event) => {
+          onPointerCancel?.(event);
+          lens.onPointerCancel(event);
+        }}
+        onClickCapture={(event) => {
+          lens.onClickCapture(event);
+          if (!event.isPropagationStopped()) onClickCapture?.(event);
+        }}
         {...rest}
       >
         <div className={classes.viewport} role="none">
+          {ios && <span ref={lensRef} className={classes.pressLens} data-menu-press-lens="" aria-hidden="true" />}
           <MenuLayer viewId={ROOT_VIEW}>{children}</MenuLayer>
           <div ref={setSubHost} className={classes.subHost} role="none" />
         </div>

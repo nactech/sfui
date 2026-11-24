@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { render, screen, within, act } from "@testing-library/react";
+import { render, screen, within, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Calendar, Copy, FolderInput, HardDrive, Link, Pencil, Send, Share, Trash2 } from "lucide-react";
 
@@ -16,6 +16,7 @@ import Menu, {
   computeMenuPosition,
 } from ".";
 import type { MenuProps } from ".";
+import ConfigProvider from "../ConfigProvider";
 
 interface Spies {
   onRename?: () => void;
@@ -342,5 +343,253 @@ describe("computeMenuPosition", () => {
     expect(
       computeMenuPosition({ ...base, align: "end", direction: "rtl", anchor: { top: 0, bottom: 44, left: 2, right: 46 } }).left,
     ).toBe(8);
+  });
+});
+
+describe("Menu · iOS", () => {
+  function renderIOS(spies: Spies = {}, props: Partial<MenuProps> = {}) {
+    return renderMenu(spies, { platform: "ios", ...props });
+  }
+  const lensOf = (menu: HTMLElement) => menu.querySelector<HTMLElement>("[data-menu-press-lens]");
+
+  test("platform=\"ios\" renders the iOS anatomy: check column keeps the icon, chevron back row, press lens", async () => {
+    const { user, trigger } = renderIOS();
+    await user.click(trigger);
+    const menu = screen.getByRole("menu", { name: "More" });
+    expect(menu).toHaveAttribute("data-platform", "ios");
+    expect(menu).toHaveAttribute("data-variant", "pulldown");
+    expect(lensOf(menu)).toBeInTheDocument();
+    expect(lensOf(menu)).not.toHaveAttribute("data-visible");
+
+    // Selected radio: check in the leading column, the calendar icon stays (web replaces it).
+    const name = screen.getByRole("menuitemradio", { name: "Name" });
+    expect(name.querySelector(".lucide-check")).toBeInTheDocument();
+    expect(name.querySelector(".lucide-calendar")).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "Date added" }).querySelector(".lucide-check")).not.toBeInTheDocument();
+
+    // Back row uses ChevronLeft on iOS.
+    await user.click(screen.getByRole("menuitem", { name: "Share" }));
+    const back = screen.getByRole("menuitem", { name: "Share, back" });
+    expect(back.querySelector(".lucide-chevron-left")).toBeInTheDocument();
+    expect(back.querySelector(".lucide-arrow-left")).not.toBeInTheDocument();
+  });
+
+  test("web keeps the M/A2 anatomy: no press lens, the check replaces the icon, ArrowLeft back", async () => {
+    const { user, trigger } = renderMenu({}, { platform: "web" });
+    await user.click(trigger);
+    const menu = screen.getByRole("menu");
+    expect(menu).toHaveAttribute("data-platform", "web");
+    expect(menu).not.toHaveAttribute("data-variant");
+    expect(lensOf(menu)).toBeNull();
+    const name = screen.getByRole("menuitemradio", { name: "Name" });
+    expect(name.querySelector(".lucide-check")).toBeInTheDocument();
+    expect(name.querySelector(".lucide-calendar")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Share" }));
+    expect(screen.getByRole("menuitem", { name: "Share, back" }).querySelector(".lucide-arrow-left")).toBeInTheDocument();
+  });
+
+  test("ConfigProvider platform=\"ios\" selects the iOS implementation (Menu and MenuPanel)", async () => {
+    const user = userEvent.setup();
+    render(
+      <ConfigProvider platform="ios">
+        <Menu trigger={<button type="button">More</button>}>
+          <MenuItem>Rename</MenuItem>
+        </Menu>
+        <MenuPanel aria-label="Inline">
+          <MenuItem>Copy</MenuItem>
+        </MenuPanel>
+      </ConfigProvider>,
+    );
+    expect(screen.getByRole("menu", { name: "Inline" })).toHaveAttribute("data-platform", "ios");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menu", { name: "More" })).toHaveAttribute("data-platform", "ios");
+  });
+
+  test("keyboard (iPad) still works: roving focus, quick row, submenu in place, Esc", async () => {
+    const { user, trigger } = renderIOS();
+    trigger.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("menuitem", { name: "Duplicate" })).toHaveFocus();
+    await user.keyboard("{ArrowDown}{ArrowRight}");
+    expect(screen.getByRole("menuitem", { name: "Telegram" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("menuitem", { name: "Share" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  test("a tap selects exactly once (pointer commit + swallowed native click)", async () => {
+    const onDelete = vi.fn();
+    const onRename = vi.fn();
+    const { user, trigger } = renderIOS({ onDelete, onRename });
+    await user.click(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }));
+    expect(onRename).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.click(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  test("press, slide and release: the lens follows the finger and release commits the item under it", async () => {
+    const onSort = vi.fn();
+    const { user, trigger } = renderIOS({ onSort });
+    await user.click(trigger);
+    const menu = screen.getByRole("menu");
+    const lens = lensOf(menu)!;
+    const name = screen.getByRole("menuitemradio", { name: "Name" });
+    const date = screen.getByRole("menuitemradio", { name: "Date added" });
+
+    await user.pointer({ keys: "[TouchA>]", target: name });
+    expect(lens).toHaveAttribute("data-visible");
+    expect(lens).toHaveAttribute("data-shape", "row");
+    await user.pointer({ pointerName: "TouchA", target: date });
+    expect(lens).toHaveAttribute("data-visible");
+    await user.pointer({ keys: "[/TouchA]", target: date });
+
+    expect(onSort).toHaveBeenCalledTimes(1);
+    expect(onSort).toHaveBeenCalledWith("date");
+    expect(date).toHaveAttribute("aria-checked", "true");
+    expect(lens).not.toHaveAttribute("data-visible");
+  });
+
+  test("the lens takes the medium-row cell shape and skips disabled items", async () => {
+    const { user, trigger } = renderIOS({ duplicateDisabled: true });
+    await user.click(trigger);
+    const lens = lensOf(screen.getByRole("menu"))!;
+    await user.pointer({ keys: "[TouchA>]", target: screen.getByRole("menuitem", { name: "Rename" }) });
+    expect(lens).toHaveAttribute("data-shape", "cell");
+    await user.pointer({ pointerName: "TouchA", target: screen.getByRole("menuitem", { name: "Duplicate" }) });
+    expect(lens).not.toHaveAttribute("data-visible");
+    await user.pointer({ keys: "[/TouchA]", target: screen.getByRole("menuitem", { name: "Duplicate" }) });
+    // Released on a disabled item: nothing is committed, the menu stays.
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  test("releasing on a submenu row opens it in place", async () => {
+    const { user, trigger } = renderIOS();
+    await user.click(trigger);
+    const share = screen.getByRole("menuitem", { name: "Share" });
+    await user.pointer({ keys: "[TouchA>]", target: screen.getByRole("menuitem", { name: "Rename" }) });
+    await user.pointer({ pointerName: "TouchA", target: share });
+    await user.pointer({ keys: "[/TouchA]", target: share });
+    expect(screen.getByRole("menu", { name: "Share" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Telegram" })).toBeInTheDocument();
+  });
+
+  test("variant=\"context\": opens on context menu / long-press / arrow keys; a tap or Enter is the preview's own action", async () => {
+    const onPreview = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Menu
+        platform="ios"
+        variant="context"
+        trigger={
+          <button type="button" onClick={onPreview}>
+            Mr. Chilly
+          </button>
+        }
+      >
+        <MenuItem>Rename</MenuItem>
+      </Menu>,
+    );
+    const trigger = screen.getByRole("button", { name: "Mr. Chilly" });
+
+    await user.click(trigger);
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.pointer({ keys: "[MouseRight]", target: trigger });
+    const menu = screen.getByRole("menu");
+    expect(menu).toHaveAttribute("data-variant", "context");
+    expect(trigger).toHaveAttribute("data-state", "open");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("data-state", "closed");
+
+    await user.keyboard("{Enter}");
+    expect(onPreview).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.pointerDown(trigger, { pointerId: 7, pointerType: "touch", clientX: 10, clientY: 10 });
+      act(() => {
+        vi.advanceTimersByTime(520);
+      });
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      fireEvent.pointerUp(trigger, { pointerId: 7, pointerType: "touch" });
+      // The click ending the long-press neither toggles the menu nor runs the preview's own action.
+      fireEvent.click(trigger, { detail: 1 });
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      expect(onPreview).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("a long-press that moves is not a long-press", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <Menu platform="ios" variant="context" trigger={<button type="button">Sticker</button>}>
+          <MenuItem>Rename</MenuItem>
+        </Menu>,
+      );
+      const trigger = screen.getByRole("button", { name: "Sticker" });
+      fireEvent.pointerDown(trigger, { pointerId: 3, pointerType: "touch", clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(trigger, { pointerId: 3, pointerType: "touch", clientX: 10, clientY: 40 });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("variant is ignored on web: a tap opens, no data-variant", async () => {
+    const user = userEvent.setup();
+    render(
+      <Menu platform="web" variant="context" trigger={<button type="button">More</button>}>
+        <MenuItem>Rename</MenuItem>
+      </Menu>,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menu")).not.toHaveAttribute("data-variant");
+  });
+});
+
+describe("computeMenuPosition · iOS", () => {
+  const base = { panelWidth: 260, panelHeight: 400, viewportWidth: 1000, viewportHeight: 800 };
+
+  test("cover: the pull-down covers its trigger (top edges aligned), flips with bottom edges aligned", () => {
+    const anchor = { top: 16, bottom: 60, left: 460, right: 504 };
+    expect(computeMenuPosition({ ...base, align: "end", cover: true, anchor })).toMatchObject({
+      placement: "bottom",
+      top: 16,
+      left: 244,
+      maxHeight: 800 - 16 - 8,
+    });
+    const low = computeMenuPosition({ ...base, align: "end", cover: true, anchor: { top: 700, bottom: 744, left: 460, right: 504 } });
+    expect(low).toMatchObject({ placement: "top", bottom: 800 - 744, maxHeight: 744 - 8 });
+  });
+
+  test("center: the context menu centres under its preview with a 12px gap", () => {
+    const pos = computeMenuPosition({
+      ...base,
+      panelWidth: 290,
+      align: "center",
+      offset: 12,
+      anchor: { top: 24, bottom: 174, left: 115, right: 405 },
+    });
+    expect(pos).toMatchObject({ placement: "bottom", top: 186, left: 115 });
   });
 });

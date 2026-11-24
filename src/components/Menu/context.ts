@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { Platform } from "/@/core/platform";
 
 export type MenuNavVia = "keyboard" | "pointer";
 export type MenuCloseReason = "select" | "escape" | "tab";
@@ -12,7 +13,12 @@ export interface MenuViewEntry {
   trigger: HTMLElement | null;
 }
 
+/** iOS menu size: `pulldown` (from a button, 260 wide) or `context` (long-press on content, 290 wide). */
+export type MenuVariant = "pulldown" | "context";
+
 export interface MenuPanelContextValue {
+  /** Resolved platform of the panel; items render the iOS anatomy when it is `ios`. */
+  platform: Platform;
   currentView: string;
   exitingView: string | null;
   path: MenuViewEntry[];

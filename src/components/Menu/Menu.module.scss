@@ -321,3 +321,223 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ───────────────────────────── iOS ─────────────────────────────
+ * final.pen → M/A1 "Menu / iOS" (JM7ea), masters `Menu/iOS` (ql1qH) and `Menu/iOS Submenu` (EtYvd).
+ * Same glass panel (260 wide pull-down / 290 context, r30, 10 vertical padding). Rows 44: `.item` padding 0 10,
+ * `.lens` capsule r22. Without checkable items: lens padding 0 10 0 18, icon box 36 (icon x 28, label x 64).
+ * With them (UIMenu reserves the column for the whole view): padding 0 10 0 4, check box 20 (15px check),
+ * icon box 38 (check x 14, icon x 34, label x 72). Medium row: padding 0 14, cells 60 high r22.
+ * No hover, no state-layer band: one press lens (`.press-lens`, driven by pressLens.ts) that fades in on
+ * touch-down and travels to the item under the finger. Labels keep their colour while pressed. */
+
+.panel[data-platform="ios"] {
+  --_ios-press: #ffffff24; // press lens + keyboard highlight, white 14% (rows 2, 2B)
+  --_ios-disabled: #ebebf54d; // iOS tertiaryLabel (dark): disabled label + icon (row 5) — a colour, not opacity
+  --_ios-chevron: #ffffffb3; // submenu chevron, white 70%
+  --_ios-lens-fade: 100ms; // lens fades in on touch-down (~100 ms)
+  --_ios-lens-travel: 280ms; // lens travel / morph between items while sliding
+  --_ios-lens-ease: cubic-bezier(0.25, 1, 0.5, 1); // soft spring-like settle, no overshoot
+
+  font-family: var(--sf-font-ios);
+  color: var(--sf-ios-label);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+
+  &[data-variant="context"] {
+    width: rem(290);
+  }
+
+  .viewport {
+    // Stacking context so the press lens (z-index −1) paints under the rows but over the glass.
+    isolation: isolate;
+    // Press-and-slide must not pan the page; a list taller than the screen still scrolls vertically.
+    touch-action: none;
+
+    &[data-scrollable] {
+      touch-action: pan-y;
+    }
+  }
+
+  .label,
+  .group-label,
+  .quick-label {
+    font-family: var(--sf-font-ios);
+  }
+
+  .group-label {
+    color: var(--sf-ios-secondary-label);
+    padding-left: rem(28);
+  }
+
+  .separator-line {
+    background-color: var(--sf-ios-separator);
+  }
+
+  /* list rows */
+
+  .item {
+    padding: 0 rem(10);
+    color: var(--sf-ios-label);
+
+    &,
+    &:hover,
+    &:active,
+    &:focus-visible {
+      background-color: transparent;
+    }
+
+    // iPad keyboard: the lens look + focus ring on the capsule.
+    &:focus-visible .lens {
+      background-color: var(--_ios-press);
+    }
+
+    &[aria-checked="true"] {
+      color: var(--sf-ios-label);
+
+      .label {
+        font-weight: 400;
+      }
+    }
+
+    &[data-destructive] {
+      color: var(--sf-ios-red);
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--_ios-disabled);
+      cursor: default;
+    }
+  }
+
+  .lens {
+    padding: 0 rem(10) 0 rem(18);
+    border-radius: rem(22);
+  }
+
+  .check {
+    display: none;
+    align-items: center;
+    flex-shrink: 0;
+    width: rem(20);
+    height: 100%;
+
+    svg {
+      width: rem(15);
+      height: rem(15);
+    }
+  }
+
+  // A view with single/multiple choice reserves the leading check column on every row (not the Back row).
+  .layer:has([role="menuitemradio"], [role="menuitemcheckbox"]) {
+    .item:not(.back) {
+      .lens {
+        padding-left: rem(4);
+      }
+
+      .check {
+        display: flex;
+      }
+
+      .icon {
+        width: rem(38);
+      }
+    }
+
+    .group-label {
+      padding-left: rem(34);
+    }
+  }
+
+  .chevron {
+    color: var(--_ios-chevron);
+  }
+
+  /* medium row (quick actions) */
+
+  .quick-row {
+    padding: 0 rem(14);
+  }
+
+  .quick-action {
+    border-radius: rem(22);
+    color: var(--sf-ios-label);
+
+    &,
+    &:hover,
+    &:active,
+    &:focus-visible {
+      background-color: transparent;
+    }
+
+    &:focus-visible {
+      background-color: var(--_ios-press);
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--_ios-disabled);
+      cursor: default;
+    }
+  }
+}
+
+// The one press lens. Positioned in px-free rem by pressLens.ts (transform/width/height).
+.press-lens {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: 0;
+  height: 0;
+  border-radius: rem(22); // capsule on 44 rows, r22 cell in the medium row
+  background-color: var(--_ios-press);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--_ios-lens-fade) linear,
+    transform var(--_ios-lens-travel) var(--_ios-lens-ease),
+    width var(--_ios-lens-travel) var(--_ios-lens-ease),
+    height var(--_ios-lens-travel) var(--_ios-lens-ease);
+
+  // Appearing under the finger: jump into place, only fade.
+  &[data-instant] {
+    transition: opacity var(--_ios-lens-fade) linear;
+  }
+
+  &[data-visible] {
+    opacity: 1;
+  }
+
+  @include reduced-motion {
+    transition: opacity var(--_ios-lens-fade) linear;
+  }
+}
+
+// iOS pull-down / context menu grows out of its trigger (scale + fade from the trigger's centre).
+.floating[data-platform="ios"][data-align][data-placement] {
+  --_ios-grow-duration: 400ms;
+  --_ios-grow-ease: cubic-bezier(0.32, 0.72, 0, 1); // iOS-like critically damped settle
+  --_ios-fade-duration: 150ms;
+
+  transform-origin: var(--menu-origin-x, 100%) var(--menu-origin-y, 0%);
+  animation:
+    menu-ios-grow var(--_ios-grow-duration) var(--_ios-grow-ease),
+    menu-ios-fade var(--_ios-fade-duration) linear;
+
+  @include reduced-motion {
+    animation: menu-ios-fade var(--_ios-fade-duration) linear;
+  }
+}
+
+@keyframes menu-ios-grow {
+  from {
+    transform: scale(0.2);
+  }
+}
+
+@keyframes menu-ios-fade {
+  from {
+    opacity: 0;
+  }
+}

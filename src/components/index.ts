@@ -51,3 +51,5 @@ export { default as SelectionBar, useSelectionShortcuts, isEditableTarget } from
 export type * from "./SelectionBar";
 export { default as List, ListItem, ListThumbnail, ListStatus, ListAction } from "./List";
 export type * from "./List";
+export { default as SelectionToolbar } from "./SelectionToolbar";
+export type * from "./SelectionToolbar";

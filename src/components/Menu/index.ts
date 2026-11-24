@@ -26,4 +26,4 @@ export type {
   MenuSubProps,
 } from "./MenuItems";
 export type { MenuAlign, MenuPlacement, MenuPosition, MenuPositionInput } from "./position";
-export type { MenuCloseReason } from "./context";
+export type { MenuCloseReason, MenuVariant } from "./context";

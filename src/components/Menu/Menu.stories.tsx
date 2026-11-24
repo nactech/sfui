@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   ArrowDownAZ,
   Calendar,
@@ -13,6 +13,7 @@ import {
   Pencil,
   Send,
   Share,
+  Snowflake,
   Trash2,
 } from "lucide-react";
 
@@ -81,10 +82,13 @@ interface ContentProps {
   onSortChange?: (value: string) => void;
   disabledQuick?: boolean;
   sortIcons?: boolean;
+  /** iOS copy is Title Case (M/A1): "Move To…", "Copy Link", "Sort By", "Date Added". */
+  titleCase?: boolean;
 }
 
-/** The menu of frame M/A2: quick row, Share submenu, Sort by single choice, Delete. */
-function FileMenuContent({ sort, onSortChange, disabledQuick, sortIcons }: ContentProps) {
+/** The menu of frames M/A2 / M/A1: quick row, Share submenu, Sort by single choice, Delete. */
+function FileMenuContent({ sort, onSortChange, disabledQuick, sortIcons, titleCase }: ContentProps) {
+  const t = (sentence: string, title: string) => (titleCase ? title : sentence);
   return (
     <>
       <MenuQuickActions aria-label="Quick actions">
@@ -93,22 +97,22 @@ function FileMenuContent({ sort, onSortChange, disabledQuick, sortIcons }: Conte
           Duplicate
         </MenuQuickAction>
         <MenuQuickAction icon={<FolderInput />} disabled={disabledQuick}>
-          Move to…
+          {t("Move to…", "Move To…")}
         </MenuQuickAction>
       </MenuQuickActions>
       <MenuSeparator />
       <MenuSub label="Share" icon={<Share />}>
         <MenuItem icon={<Send />}>Telegram</MenuItem>
-        <MenuItem icon={<Link />}>Copy link</MenuItem>
+        <MenuItem icon={<Link />}>{t("Copy link", "Copy Link")}</MenuItem>
         <MenuItem icon={<Download />}>Export .tgs</MenuItem>
       </MenuSub>
       <MenuSeparator />
-      <MenuRadioGroup label="Sort by" value={sort} defaultValue="name" onValueChange={onSortChange}>
+      <MenuRadioGroup label={t("Sort by", "Sort By")} value={sort} defaultValue="name" onValueChange={onSortChange}>
         <MenuRadioItem value="name" icon={sortIcons ? <ArrowDownAZ /> : <Calendar />}>
           Name
         </MenuRadioItem>
         <MenuRadioItem value="date" icon={<Calendar />}>
-          Date added
+          {t("Date added", "Date Added")}
         </MenuRadioItem>
         <MenuRadioItem value="size" icon={<HardDrive />}>
           Size
@@ -126,13 +130,15 @@ const meta = {
   title: "Components/Menu",
   component: Menu,
   tags: ["autodocs"],
-  parameters: { layout: "centered" },
+  // Web stories render M/A2 whatever the toolbar says; the iOS stories below pin `platform: "ios"`.
+  parameters: { layout: "centered", platform: "web" },
   args: {
     trigger: <MoreButton />,
     align: "end",
   },
   argTypes: {
-    align: { control: "inline-radio", options: ["start", "end"] },
+    align: { control: "inline-radio", options: ["start", "center", "end"] },
+    variant: { control: "inline-radio", options: ["pulldown", "context"] },
     trigger: { control: false },
   },
 } satisfies Meta<typeof Menu>;
@@ -239,4 +245,231 @@ export const FlipAbove: Story = {
     </div>
   ),
   parameters: { layout: "fullscreen" },
+};
+
+/* ───────────────────────────── iOS (final.pen M/A1 "Menu / iOS") ───────────────────────────── */
+
+/** Phone-width stage (390) with the frames' 500 height. */
+const phoneStage = (background: React.CSSProperties): React.CSSProperties => ({
+  ...stage(background),
+  width: "24.375rem",
+  height: "31.25rem",
+});
+
+const ios = { platform: "ios" } as const;
+
+/** Waits for the grow-in, then holds a finger down on an item (the lens stays while the pointer is down). */
+async function pressAndHold(name: string, role: "menuitem" | "menuitemradio") {
+  const body = within(document.body);
+  const target = await body.findByRole(role, { name });
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  const r = target.getBoundingClientRect();
+  await userEvent.pointer({
+    keys: "[TouchA>]",
+    target,
+    coords: { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 },
+  });
+}
+
+/** iOS row 1 · Rest — grows out of ••• and covers it (top-right corners aligned), no dimming. Title Case copy,
+ *  check column (the view has a single choice), Lucide outline icons where iOS draws filled SF Symbols. */
+export const IOSRest: Story = {
+  name: "iOS · Rest",
+  parameters: ios,
+  args: { defaultOpen: true },
+  render: (args) => (
+    <div style={phoneStage(photo)}>
+      <Menu {...args}>
+        <FileMenuContent titleCase sortIcons />
+      </Menu>
+    </div>
+  ),
+};
+
+/** iOS row 2 · Pressed — one lens (capsule inset 10, white 14%) under the finger; press anywhere, slide, and
+ *  release on an item to choose it. Labels keep their colour. This story holds a finger on Date Added. */
+export const IOSPressed: Story = {
+  name: "iOS · Pressed (slide to highlight)",
+  parameters: ios,
+  args: { defaultOpen: true },
+  render: IOSRest.render,
+  play: async () => {
+    await pressAndHold("Date Added", "menuitemradio");
+    await waitFor(() => expect(document.querySelector("[data-menu-press-lens][data-visible]")).not.toBeNull());
+  },
+};
+
+/** iOS row 2B · Pressed · quick action — the same lens morphs into the medium-row cell (r 22). */
+export const IOSPressedQuickAction: Story = {
+  name: "iOS · Pressed · quick action",
+  parameters: ios,
+  args: { defaultOpen: true },
+  render: IOSRest.render,
+  play: async () => {
+    await pressAndHold("Duplicate", "menuitem");
+  },
+};
+
+/** iOS row 3 · Selection — a white check in the leading column; icon and label unchanged. Stays open. */
+export const IOSSelection: Story = {
+  name: "iOS · Selection",
+  parameters: ios,
+  render: function IOSSelectionStory(args) {
+    const [sort, setSort] = useState("date");
+    return (
+      <div style={phoneStage(photo)}>
+        <Menu {...args} defaultOpen>
+          <FileMenuContent sort={sort} onSortChange={setSort} sortIcons titleCase />
+        </Menu>
+      </div>
+    );
+  },
+};
+
+/** iOS rows 4 / 4B · Submenu — Share replaces the content in place under a "‹ Share" back row; the panel keeps
+ *  its anchored edge and springs to the new height (shared axis X, damping 1.0). */
+export const IOSSubmenu: Story = {
+  name: "iOS · Submenu",
+  parameters: ios,
+  args: { defaultOpen: true },
+  render: IOSRest.render,
+  play: async () => {
+    const body = within(document.body);
+    await userEvent.click(await body.findByRole("menuitem", { name: "Share" }));
+    await expect(await body.findByRole("menuitem", { name: "Share, back" })).toBeInTheDocument();
+  },
+};
+
+/** iOS row 5 · Disabled + destructive — Duplicate and Move To… in tertiaryLabel (a colour, not opacity),
+ *  Delete in systemRed. */
+export const IOSDisabled: Story = {
+  name: "iOS · Disabled + destructive",
+  parameters: ios,
+  args: { defaultOpen: true },
+  render: (args) => (
+    <div style={phoneStage(photo)}>
+      <Menu {...args}>
+        <FileMenuContent disabledQuick titleCase sortIcons />
+      </Menu>
+    </div>
+  ),
+};
+
+const previewCard: React.CSSProperties = {
+  position: "absolute",
+  top: "1.5rem",
+  left: "50%",
+  width: "18.125rem",
+  height: "9.375rem",
+  marginLeft: "-9.0625rem",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.5rem",
+  padding: 0,
+  border: 0,
+  borderRadius: "1.875rem",
+  background: "#1c1c1e", // iOS secondarySystemBackground (dark) — the lifted preview card of row 6
+  color: "var(--sf-ios-label)",
+  fontFamily: "var(--sf-font-ios)",
+  fontSize: "1.0625rem",
+  fontWeight: 600,
+  letterSpacing: "-0.025rem",
+  cursor: "pointer",
+  WebkitTouchCallout: "none",
+  userSelect: "none",
+  transition: "transform 200ms var(--sf-ease-standard), box-shadow 200ms var(--sf-ease-standard)",
+};
+
+/** The long-pressed sticker. `data-state="open"` (set by Menu) lifts it: shadow 0 18 50, black 50%. */
+function StickerPreview(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { "data-state"?: string }) {
+  const lifted = props["data-state"] === "open";
+  return (
+    <button
+      type="button"
+      {...props}
+      style={{
+        ...previewCard,
+        transform: lifted ? "scale(1)" : "scale(0.94)",
+        boxShadow: lifted ? "0 1.125rem 3.125rem #00000080" : "none",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          display: "grid",
+          placeItems: "center",
+          width: "4.5rem",
+          height: "4.5rem",
+          borderRadius: "1.25rem",
+          background: "var(--sf-accent-tonal)",
+          color: "var(--sf-accent-on-tonal)",
+        }}
+      >
+        <Snowflake size="2.25rem" />
+      </span>
+      Mr. Chilly
+    </button>
+  );
+}
+
+/** iOS row 6 · Context menu — `variant="context"`: 290 wide, centred 12 below the lifted preview, background
+ *  stays sharp (no blur, no dim). Opens on long-press / right-click / ↓; a tap is the sticker's own action. */
+export const IOSContextMenu: Story = {
+  name: "iOS · Context menu",
+  parameters: ios,
+  args: { defaultOpen: true, variant: "context", align: "center" },
+  render: (args) => (
+    <div style={{ ...phoneStage(photo), height: "38.0625rem" }}>
+      <Menu {...args} trigger={<StickerPreview />}>
+        <FileMenuContent titleCase sortIcons />
+      </Menu>
+    </div>
+  ),
+};
+
+/** iOS rows 1, 3, 5 and the context width side by side as static panels (no lens, no positioning). */
+export const IOSMatrix: Story = {
+  name: "iOS · Matrix",
+  parameters: ios,
+  render: () => (
+    <div style={{ ...photo, display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: "1.5rem", padding: "2rem", borderRadius: "1.25rem" }}>
+      <MenuPanel aria-label="Rest">
+        <FileMenuContent titleCase sortIcons />
+      </MenuPanel>
+      <MenuPanel aria-label="Selection">
+        <FileMenuContent sort="date" titleCase sortIcons />
+      </MenuPanel>
+      <MenuPanel aria-label="Disabled and destructive">
+        <FileMenuContent disabledQuick titleCase sortIcons />
+      </MenuPanel>
+      <MenuPanel aria-label="Share">
+        <MenuItem icon={<Send />}>Telegram</MenuItem>
+        <MenuItem icon={<Link />}>Copy Link</MenuItem>
+        <MenuItem icon={<Download />}>Export .tgs</MenuItem>
+      </MenuPanel>
+      <MenuPanel aria-label="Context" variant="context">
+        <FileMenuContent titleCase sortIcons />
+      </MenuPanel>
+    </div>
+  ),
+};
+
+/** iOS · iPad keyboard — the same roving focus as web; the focused row shows the lens fill + focus ring. */
+export const IOSKeyboard: Story = {
+  name: "iOS · Keyboard (iPad)",
+  parameters: ios,
+  render: (args) => (
+    <div style={phoneStage(darkStage)}>
+      <Menu {...args}>
+        <FileMenuContent titleCase sortIcons />
+      </Menu>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "More" });
+    trigger.focus();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
+  },
 };
