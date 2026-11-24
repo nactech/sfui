@@ -1,0 +1,66 @@
+@use "functions" as *;
+
+/// Black Glass chrome that floats over content: translucent fill, blur, 1px rim, top highlight.
+@mixin glass($fill: var(--sf-glass-fill), $rim: var(--sf-glass-rim)) {
+  background-color: $fill;
+  border: 1px solid $rim;
+  box-shadow: inset 0 1px 0 var(--sf-glass-highlight);
+  -webkit-backdrop-filter: blur(var(--sf-glass-blur));
+  backdrop-filter: blur(var(--sf-glass-blur));
+}
+
+/// Keyboard focus ring (focus-visible only). Matches the "Focus" state frames.
+@mixin focus-ring($offset: rem(2)) {
+  &:focus-visible {
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: $offset;
+  }
+}
+
+/// Opaque disabled look. Never use opacity for disabled — it disappears over images.
+@mixin disabled-surface {
+  background-color: var(--sf-disabled-fill);
+  border-color: var(--sf-disabled-rim);
+  color: var(--sf-disabled-fg);
+  cursor: not-allowed;
+}
+
+/// Resets native button chrome.
+@mixin button-reset {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@mixin text($size, $weight: 400, $line: null) {
+  font-family: var(--sf-font-sans);
+  font-size: rem($size);
+  font-weight: $weight;
+  @if $line {
+    line-height: rem($line);
+  } @else {
+    line-height: normal;
+  }
+}
+
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}
+
+/// Hover only on devices with a real pointer (no sticky hover on touch).
+@mixin hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @content;
+    }
+  }
+}

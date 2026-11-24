@@ -1,6 +1,5 @@
 import React from "react";
 import classes from "./Stack.module.scss";
-import uiClasses from "/@/core/styles/ui.module.scss";
 import { AdaptiveValue } from "/@/core/types/AdaptiveDesign";
 import { useAdaptiveValue } from "/@/hooks/media";
 import { buildClassName } from "/@/core/util";
@@ -23,20 +22,17 @@ const Stack = (props: StackProps) => {
     ...cleanedProps
   } = props;
 
-  const directionValue = direction ? (
-    useAdaptiveValue(direction, "column")
-  ) : "column";
-  const spacingValue = spacing ? (
-    useAdaptiveValue(spacing, 0)
-  ) : 0;
-  const styles = {
+  const directionValue = useAdaptiveValue<DirectionType, DirectionType>(direction ?? "column", "column");
+  const spacingValue = useAdaptiveValue<number, number>(spacing ?? 0, 0);
+  // 1 spacing unit = 4px = 0.25rem
+  const styles: React.CSSProperties = {
     flexDirection: directionValue,
-    gap: spacingValue * 4
+    gap: `${spacingValue * 0.25}rem`
   };
   return (
     <div
       style={{...styles, ...userDefinedStyle}}
-      className={buildClassName(classes.stack, uiClasses.translucentSurface, userDefinedClassName)}
+      className={buildClassName(classes.stack, userDefinedClassName)}
       {...cleanedProps}
     >
       {React.Children.map(children, (child, index) => (

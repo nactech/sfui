@@ -1,0 +1,10 @@
+html,
+body {
+  background: #000;
+  color: #f4f4f5;
+  font-family: "Geist Variable", system-ui, sans-serif;
+}
+
+.docs-story {
+  background: #000;
+}

@@ -1,110 +1,68 @@
-import React, { useCallback } from "react";
+import React from "react";
 import classes from "./Container.module.scss";
-import uiClasses from "/@/core/styles/ui.module.scss";
 import { AdaptiveValue } from "/@/core/types/AdaptiveDesign";
 import { useAdaptiveValue } from "/@/hooks/media";
 import { buildClassName } from "/@/core/util";
 
-type EmphasisVariants = (
-  "surface-container-lowest" |
-  "surface-container-low" |
-  "surface-container" |
-  "surface-container-high" |
-  "surface-container-highest"
-);
-type ContainerVariants = "primary" | "secondary" | "tertiary" | EmphasisVariants;
-type ShapeStyles = (
-  "none" |
-  "extra-small" |
-  "small" |
-  "medium" |
-  "large" |
-  "extra-large" |
-  "full"
-);
-export interface ContainerProps extends Pick<React.HTMLAttributes<HTMLDivElement>, "style" | "className">{
-  children?: React.ReactNode,
-  margin?: AdaptiveValue<number>,
-  padding?: AdaptiveValue<number>,
-  variant?: ContainerVariants,
-  outline?: boolean,
-  outlineStyle?: "outline" | "outline-variant" | "auto",
-  shapeStyle?: ShapeStyles
+/** Black Glass surfaces. Elevation is a surface step plus a 1px rim; `glass` is only for chrome over content. */
+export type ContainerVariant = "surface-0" | "surface-1" | "surface-2" | "surface-3" | "glass" | "tonal";
+export type ContainerShape = "none" | "sm" | "md" | "lg" | "xl" | "full";
+
+export interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
+  children?: React.ReactNode;
+  /** Outer margin in 4px units (0.25rem). */
+  margin?: AdaptiveValue<number>;
+  /** Inner padding in 4px units (0.25rem). */
+  padding?: AdaptiveValue<number>;
+  variant?: ContainerVariant;
+  /** 1px rim. `strong` uses rim/strong. */
+  outline?: boolean | "strong";
+  shapeStyle?: ContainerShape;
 }
+
+const variantClass: Record<ContainerVariant, string> = {
+  "surface-0": classes.surface0,
+  "surface-1": classes.surface1,
+  "surface-2": classes.surface2,
+  "surface-3": classes.surface3,
+  glass: classes.glass,
+  tonal: classes.tonal,
+};
+
+const shapeClass: Record<ContainerShape, string> = {
+  none: classes.shapeNone,
+  sm: classes.shapeSm,
+  md: classes.shapeMd,
+  lg: classes.shapeLg,
+  xl: classes.shapeXl,
+  full: classes.shapeFull,
+};
 
 const Container = ({
   margin = 0,
-  padding = 2,
-  variant = "surface-container",
+  padding = 4,
+  variant = "surface-1",
   outline = false,
-  outlineStyle = "auto",
-  shapeStyle = "medium",
-  style: userDefinedStyle,
-  className: userDefinedClassName,
+  shapeStyle = "lg",
+  style,
+  className,
   children,
-  ...cleanedProps
+  ...rest
 }: ContainerProps) => {
   const marginValue = useAdaptiveValue(margin, 0);
-  const paddingValue = useAdaptiveValue(padding, 2);
-
-  const getOutline = useCallback((): string => {
-    if (!outline) return classes.outlineNone;
-    if (!variant.startsWith("surface-container")) {
-      console.warn(
-        "[design] Please do not use outline with primary, secondary, or tertiary variants. Use surface container variants instead."
-      )
-    }
-    if (outlineStyle === "outline") return classes.outline;
-    if (outlineStyle === "outline-variant") return classes.outlineVariant;
-
-    // auto outline color detection
-    return (
-      React.Children.count(children) > 1 ?
-        classes.outlineVariant :
-        classes.outline
-    );
-  }, []);
-
-  const variants = {
-    primary: classes.primary,
-    secondary: classes.secondary,
-    tertiary: classes.tertiary,
-    "surface-container-lowest": classes.surfaceContainerLowest,
-    "surface-container-low": classes.surfaceContainerLow,
-    "surface-container": classes.surfaceContainer,
-    "surface-container-high": classes.surfaceContainerHigh,
-    "surface-container-highest": classes.surfaceContainerHighest
-  }
-
-  const shapeStyles = {
-    none: classes.shapeNone,
-    "extra-small": classes.shapeExtraSmall,
-    small: classes.shapeSmall,
-    medium: classes.shapeMedium,
-    large: classes.shapeLarge,
-    "extra-large": classes.shapeExtraLarge,
-    full: classes.shapeFull
-  }
-
-  const styles = {
-    margin: marginValue * 4,
-    padding: paddingValue * 4
-  };
+  const paddingValue = useAdaptiveValue(padding, 4);
 
   return (
     <div
-      style={{...styles, ...userDefinedStyle}}
-      className={
-        buildClassName(
-          classes.container,
-          variants[variant],
-          shapeStyles[shapeStyle],
-          getOutline(),
-          uiClasses.translucentSurface,
-          userDefinedClassName
-        )
-      }
-      {...cleanedProps}
+      style={{ margin: `${marginValue * 0.25}rem`, padding: `${paddingValue * 0.25}rem`, ...style }}
+      className={buildClassName(
+        classes.container,
+        variantClass[variant],
+        shapeClass[shapeStyle],
+        outline === "strong" ? classes.outlineStrong : outline ? classes.outline : undefined,
+        className,
+      )}
+      {...rest}
     >
       {children}
     </div>
