@@ -1,0 +1,207 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → C/D "Expressive × Glass" (frames C/D1 Rest, C/D2 Pressed, C/D3 Focus, C/D4 Disabled).
+// M3E logic in Apple materials: solid at rest; the knob grows from a dot into a capsule with a check,
+// turns into a glass lens while pressed; over content the track switches to glass.
+//
+// Track 56×32. Knob geometry (left edge measured from the track's outer edge):
+//   off           16×16  r8   x 9.5   fg/subtle dot
+//   on            30×24  r12  x 23    accent/on capsule + check
+//   off, pressed  28×24  r12  x 9.5   glass lens
+//   on, pressed   42×28  r14  x 11    glass lens + check
+
+.root {
+  // Glass lens knob (C/D2 Pressed) — not in the token table.
+  --_lens-fill: #ffffffcc; // knob lens fill (white 80%)
+  --_lens-rim: #ffffff80; // knob lens 1px rim (white 50%)
+  --_lens-highlight: #ffffffb3; // knob lens top highlight (white 70%)
+  --_lens-shadow: #00000066; // knob lens drop shadow (black 40%)
+  --_knob-shadow: #00000059; // capsule knob drop shadow at rest (black 35%)
+
+  // Track slots
+  --_track-fill: var(--sf-surface-2);
+  --_track-ring: inset 0 0 0 #{rem(1.5)} var(--sf-rim-strong);
+  --_track-blur: none;
+
+  // Knob slots
+  --_knob-w: #{rem(16)};
+  --_knob-h: #{rem(16)};
+  --_knob-r: #{rem(8)};
+  --_knob-x: #{rem(9.5)};
+  --_knob-fill: var(--sf-fg-subtle);
+  --_knob-shadow-value: none;
+  --_check: var(--sf-accent-default);
+  --_check-opacity: 0;
+  --_check-scale: 0.4;
+
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: rem(12);
+  min-width: 0;
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-sans);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+
+  &[data-state="checked"] {
+    --_track-fill: var(--sf-accent-default);
+    --_track-ring: none;
+    --_knob-w: #{rem(30)};
+    --_knob-h: #{rem(24)};
+    --_knob-r: #{rem(12)};
+    --_knob-x: #{rem(23)};
+    --_knob-fill: var(--sf-accent-on);
+    --_knob-shadow-value: 0 #{rem(2)} #{rem(6)} var(--_knob-shadow);
+    --_check-opacity: 1;
+    --_check-scale: 1;
+  }
+
+  // Over content → glass. The "off" glass track is inferred from Button/Secondary (only "on" is drawn).
+  &[data-over-content] {
+    --_track-fill: var(--sf-glass-fill);
+    --_track-ring: inset 0 0 0 1px var(--sf-glass-rim), inset 0 1px 0 var(--sf-glass-highlight-soft);
+    --_track-blur: blur(var(--sf-glass-blur));
+
+    &[data-state="checked"] {
+      --_track-fill: var(--sf-glass-accent);
+      --_track-ring: inset 0 0 0 1px var(--sf-glass-rim-light), inset 0 1px 0 var(--sf-glass-highlight);
+    }
+  }
+
+  // C/D2 Pressed: the knob becomes a glass lens and grows (pointer on the row, or Space on the input).
+  &:not([data-disabled]):active,
+  &:not([data-disabled]):has(.input:active) {
+    --_knob-w: #{rem(28)};
+    --_knob-h: #{rem(24)};
+    --_knob-r: #{rem(12)};
+    --_knob-fill: var(--_lens-fill);
+    --_knob-shadow-value: inset 0 0 0 1px var(--_lens-rim), inset 0 1px 0 var(--_lens-highlight),
+      0 #{rem(3)} #{rem(8)} var(--_lens-shadow);
+    --_check: var(--sf-accent-on);
+
+    .knob {
+      -webkit-backdrop-filter: blur(var(--sf-glass-blur));
+      backdrop-filter: blur(var(--sf-glass-blur));
+    }
+
+    &[data-state="checked"] {
+      --_knob-w: #{rem(42)};
+      --_knob-h: #{rem(28)};
+      --_knob-r: #{rem(14)};
+      --_knob-x: #{rem(11)};
+    }
+  }
+
+  // C/D4 Disabled: opaque disabled fill + hairline, knob in disabled/fg — also over content (no glass).
+  // `[data-state]` lifts specificity above the over-content rules.
+  &[data-disabled][data-state] {
+    --_track-fill: var(--sf-disabled-fill);
+    --_track-ring: inset 0 0 0 1px var(--sf-disabled-rim);
+    --_track-blur: none;
+    --_knob-fill: var(--sf-disabled-fg);
+    --_knob-shadow-value: none;
+    --_check: var(--sf-disabled-fill);
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+}
+
+.control {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+// Native input stretched over the track: real hit target, real keyboard + form semantics.
+.input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.track {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: rem(56);
+  height: rem(32);
+  border-radius: rem(16);
+  background-color: var(--_track-fill);
+  box-shadow: var(--_track-ring);
+  -webkit-backdrop-filter: var(--_track-blur);
+  backdrop-filter: var(--_track-blur);
+  transition:
+    background-color var(--sf-duration-medium) var(--sf-ease-standard),
+    box-shadow var(--sf-duration-medium) var(--sf-ease-standard);
+}
+
+// C/D3 Focus: 2px focus ring around the track; it replaces the solid rim (glass keeps its highlight).
+.input:focus-visible + .track {
+  outline: rem(2) solid var(--sf-focus-ring);
+  outline-offset: 0;
+  --_track-ring: none;
+
+  .root[data-over-content] & {
+    --_track-ring: inset 0 1px 0 var(--sf-glass-highlight);
+  }
+}
+
+.knob {
+  position: absolute;
+  top: 50%;
+  left: var(--_knob-x);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--_knob-w);
+  height: var(--_knob-h);
+  border-radius: var(--_knob-r);
+  background-color: var(--_knob-fill);
+  box-shadow: var(--_knob-shadow-value);
+  transform: translateY(-50%);
+  // Dot → capsule uses the spring; colours follow the standard curve.
+  transition:
+    left var(--sf-duration-slow) var(--sf-ease-spring),
+    width var(--sf-duration-slow) var(--sf-ease-spring),
+    height var(--sf-duration-slow) var(--sf-ease-spring),
+    border-radius var(--sf-duration-slow) var(--sf-ease-spring),
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+.check {
+  width: rem(14);
+  height: rem(14);
+  flex-shrink: 0;
+  color: var(--_check);
+  opacity: var(--_check-opacity);
+  transform: scale(var(--_check-scale));
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-standard),
+    transform var(--sf-duration-medium) var(--sf-ease-spring),
+    color var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+.label {
+  min-width: 0;
+  font-size: rem(14);
+  font-weight: 400;
+  line-height: rem(20);
+}
+
+@include reduced-motion {
+  .track,
+  .knob,
+  .check {
+    transition: none;
+  }
+}

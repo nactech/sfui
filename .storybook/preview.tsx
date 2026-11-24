@@ -1,7 +1,7 @@
 import type { Preview } from "@storybook/react-vite";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
-import "../src/index.module.scss";
+import "./global.scss";
 import "./preview.css";
 
 const preview: Preview = {

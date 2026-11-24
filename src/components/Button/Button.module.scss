@@ -1,0 +1,183 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → B/C "Glass · Tinted" (frames B/C1 Rest, B/C2 Pressed, B/C3 Focus, B/C4 Disabled).
+// Translucent pills with blur and a light rim: tinted surfaces on black, refracting glass over media.
+// The same set is used on canvas and over content, so there is no separate "over content" mode.
+
+.button {
+  // Per-variant slots, set below.
+  --_fill: transparent;
+  --_fill-pressed: transparent;
+  --_rim: transparent;
+  --_highlight: transparent;
+  --_fg: var(--sf-fg-default);
+
+  @include button-reset;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--_rim);
+  border-radius: var(--sf-radius-full);
+  background-color: var(--_fill);
+  box-shadow: inset 0 1px 0 var(--_highlight);
+  -webkit-backdrop-filter: blur(var(--sf-glass-blur));
+  backdrop-filter: blur(var(--sf-glass-blur));
+  color: var(--_fg);
+  font-family: var(--sf-font-sans);
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    border-color var(--sf-duration-fast) var(--sf-ease-standard),
+    color var(--sf-duration-fast) var(--sf-ease-standard),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-standard);
+
+  // B/C2 Pressed: the fill steps to its pressed token, rim and highlight stay.
+  &:active:not(:disabled, [aria-disabled="true"]) {
+    background-color: var(--_fill-pressed);
+  }
+
+  // B/C3 Focus: 2px focus ring replaces the rim.
+  &:focus-visible {
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: 0;
+    border-color: transparent;
+  }
+
+  // B/C4 Disabled: one neutral glass fill + disabled/fg, no opacity — stays legible over content.
+  &:disabled,
+  &[aria-disabled="true"] {
+    --_fill: var(--sf-disabled-glass);
+    --_fill-pressed: var(--sf-disabled-glass);
+    --_rim: var(--sf-disabled-rim);
+    --_highlight: transparent;
+    --_fg: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+// ── Variants ────────────────────────────────────────────────────────────────
+
+.primary {
+  --_fill: var(--sf-glass-accent);
+  --_fill-pressed: var(--sf-glass-accent-pressed);
+  --_rim: var(--sf-glass-rim-light);
+  --_highlight: var(--sf-glass-highlight);
+  --_fg: var(--sf-accent-on);
+}
+
+.tonal {
+  --_fill: var(--sf-glass-tonal);
+  --_fill-pressed: var(--sf-glass-tonal-pressed);
+  --_rim: var(--sf-glass-rim-accent);
+  --_highlight: var(--sf-glass-highlight-soft);
+  --_fg: var(--sf-accent-on-tonal);
+}
+
+.secondary {
+  --_fill: var(--sf-glass-fill);
+  --_fill-pressed: var(--sf-glass-fill-pressed);
+  --_rim: var(--sf-glass-rim);
+  --_highlight: var(--sf-glass-highlight-soft);
+  --_fg: var(--sf-fg-default);
+}
+
+// Ghost: no fill, no rim, no blur at rest; a faint wash while pressed.
+.ghost {
+  --_fill: transparent;
+  --_fill-pressed: var(--sf-glass-ghost-pressed);
+  --_rim: transparent;
+  --_highlight: transparent;
+  --_fg: var(--sf-fg-default);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    --_fill: transparent;
+    --_fill-pressed: transparent;
+    --_rim: transparent;
+  }
+}
+
+// Danger has no top highlight in the masters.
+.danger {
+  --_fill: var(--sf-glass-danger);
+  --_fill-pressed: var(--sf-glass-danger-pressed);
+  --_rim: var(--sf-glass-rim-danger);
+  --_highlight: transparent;
+  --_fg: var(--sf-danger-default);
+}
+
+// ── Sizes (height / horizontal padding / gap / label size) ──────────────────
+
+.size-s {
+  --_icon: #{rem(14)};
+  height: rem(32);
+  padding: 0 rem(12);
+  gap: rem(6);
+  font-size: rem(13);
+}
+
+.size-m {
+  --_icon: #{rem(16)};
+  height: rem(40);
+  padding: 0 rem(16);
+  gap: rem(8);
+  font-size: rem(14);
+}
+
+.size-l {
+  --_icon: #{rem(18)};
+  height: rem(48);
+  padding: 0 rem(20);
+  gap: rem(8);
+  font-size: rem(16);
+}
+
+// "Icon only" column: a circle with the size's height.
+.icon-only {
+  padding: 0;
+  aspect-ratio: 1;
+
+  &.size-s { width: rem(32); }
+  &.size-m { width: rem(40); }
+  &.size-l { width: rem(48); }
+}
+
+.full-width {
+  display: flex;
+  width: 100%;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--_icon);
+  height: var(--_icon);
+
+  svg {
+    width: var(--_icon);
+    height: var(--_icon);
+  }
+}
