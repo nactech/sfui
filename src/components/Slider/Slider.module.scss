@@ -1,0 +1,354 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// R/E1 Slider · Fill & lens — Android + Web (final.pen, frame UD8xo).
+// The whole bar is the control; the fill is the handle (Control Center style).
+
+.slider,
+.stepped {
+  // Not in the token table:
+  --_grip-rest: #10153a80; // accent/on @ 50% — grip at rest
+  --_fill-disabled: #2a2a2e; // disabled fill (opaque step between disabled/fill and surface/3)
+
+  // Size M — 44 (rows 1–7)
+  --_h: #{rem(44)};
+  --_h-drag: #{rem(52)}; // row 3: bar stretches 44 → 52
+  --_pad-l: #{rem(14)};
+  --_pad-r: #{rem(10)};
+  --_gap: #{rem(10)};
+  --_icon: #{rem(18)};
+  --_grip-w: #{rem(3)};
+  --_grip-h: #{rem(18)};
+  --_grip-h-hover: #{rem(24)};
+  --_grip-w-drag: #{rem(4)};
+  --_grip-h-drag: #{rem(28)};
+  --_value-size: #{rem(14)};
+
+  position: relative;
+  box-sizing: border-box;
+  height: var(--_h);
+  min-width: rem(120);
+  border-radius: var(--sf-radius-full);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  font-family: var(--sf-font-sans);
+  transition:
+    height var(--sf-duration-medium) var(--sf-ease-spring),
+    margin var(--sf-duration-medium) var(--sf-ease-spring);
+
+  @include focus-ring(0);
+
+  &[data-size="s"] {
+    // Size S — 32 (row 8). Hover/drag values for S are scaled from M (not drawn).
+    --_h: #{rem(32)};
+    --_h-drag: #{rem(38)};
+    --_pad-l: #{rem(12)};
+    --_icon: #{rem(16)};
+    --_grip-w: #{rem(2)};
+    --_grip-h: #{rem(14)};
+    --_grip-h-hover: #{rem(18)};
+    --_grip-w-drag: #{rem(3)};
+    --_grip-h-drag: #{rem(22)};
+    --_value-size: #{rem(13)};
+  }
+
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+// ---------------------------------------------------------------- continuous
+
+.slider {
+  // Smallest fill: a circle, or wide enough for icon + grip.
+  --_min-fill: var(--_h);
+  --_fill-w: calc(var(--_min-fill) + (100% - var(--_min-fill)) * var(--_pct, 0));
+
+  overflow: hidden;
+  background-color: var(--sf-surface-2);
+
+  &[data-icon] {
+    --_min-fill: calc(var(--_pad-l) + var(--_icon) + var(--_gap) + var(--_grip-w) + var(--_pad-r));
+  }
+
+  // Rim (row 2 hover). Drawn on top so the fill never covers it.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    pointer-events: none;
+    transition: border-color var(--sf-duration-fast) var(--sf-ease-standard);
+  }
+
+  &:not([aria-disabled="true"]) {
+    @include hover {
+      &::after {
+        border-color: var(--sf-rim-strong);
+      }
+      .grip {
+        height: var(--_grip-h-hover);
+        background-color: var(--sf-accent-on);
+      }
+    }
+  }
+
+  // Row 3 · Dragging: the bar stretches without moving the layout around it.
+  &[data-dragging] {
+    height: var(--_h-drag);
+    margin-block: calc((var(--_h) - var(--_h-drag)) / 2);
+    cursor: grabbing;
+
+    .grip {
+      width: var(--_grip-w-drag);
+      height: var(--_grip-h-drag);
+      background-color: var(--sf-accent-on);
+    }
+    .fill,
+    .value {
+      transition: none;
+    }
+  }
+}
+
+.fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--_gap);
+  width: var(--_fill-w);
+  min-width: var(--_min-fill);
+  padding: 0 var(--_pad-r) 0 var(--_pad-l);
+  border-radius: var(--sf-radius-full);
+  background-color: var(--sf-accent-default);
+  color: var(--sf-accent-on);
+  transition: width var(--sf-duration-medium) var(--sf-ease-standard);
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+
+  svg {
+    width: var(--_icon);
+    height: var(--_icon);
+  }
+}
+
+.grip {
+  flex-shrink: 0;
+  margin-left: auto;
+  width: var(--_grip-w);
+  height: var(--_grip-h);
+  border-radius: rem(2);
+  background-color: var(--_grip-rest);
+  transition:
+    height var(--sf-duration-medium) var(--sf-ease-spring),
+    width var(--sf-duration-medium) var(--sf-ease-spring),
+    background-color var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+// Value text: right-aligned inside the fill, next to the grip…
+.value {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--_fill-w) - var(--_pad-r) - var(--_grip-w) - var(--_gap));
+  z-index: 2;
+  transform: translate(-100%, -50%);
+  font-size: var(--_value-size);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  color: var(--sf-accent-on);
+  pointer-events: none;
+  transition: left var(--sf-duration-medium) var(--sf-ease-standard);
+}
+
+// …row 6 · Low value: it moves outside the fill when it no longer fits.
+.slider[data-label-outside] .value {
+  left: calc(var(--_fill-w) + var(--_pad-l));
+  transform: translateY(-50%);
+  color: var(--sf-fg-default);
+}
+
+.max {
+  position: absolute;
+  top: 50%;
+  right: var(--_pad-l);
+  transform: translateY(-50%);
+  font-family: var(--sf-font-mono);
+  font-size: rem(12);
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+  color: var(--sf-fg-subtle);
+  pointer-events: none;
+}
+
+// Row 5 · Disabled — opaque, no opacity.
+.slider[aria-disabled="true"] {
+  background-color: var(--sf-disabled-fill);
+
+  &::after {
+    border-color: var(--sf-disabled-rim);
+  }
+  .fill {
+    background-color: var(--_fill-disabled);
+    color: var(--sf-disabled-fg);
+  }
+  .grip {
+    background-color: var(--sf-disabled-fg);
+  }
+  .value,
+  .max {
+    color: var(--sf-disabled-fg);
+  }
+}
+
+// Over content → glass.
+.slider[data-variant="glass"] {
+  background-color: var(--sf-glass-fill);
+  box-shadow: inset 0 1px 0 var(--sf-glass-highlight-soft);
+  -webkit-backdrop-filter: blur(rem(12));
+  backdrop-filter: blur(rem(12));
+
+  &::after {
+    border-color: var(--sf-glass-rim);
+  }
+  .fill {
+    border: 1px solid var(--sf-glass-rim-light);
+    background-color: var(--sf-glass-accent);
+    box-shadow: inset 0 1px 0 var(--sf-glass-highlight);
+  }
+
+  &:not([aria-disabled="true"]) {
+    @include hover {
+      &::after {
+        border-color: var(--sf-glass-rim-light);
+      }
+    }
+  }
+
+  &[aria-disabled="true"] {
+    background-color: var(--sf-disabled-glass);
+
+    .fill {
+      border-color: var(--sf-disabled-rim);
+      background-color: var(--_fill-disabled);
+      box-shadow: none;
+    }
+  }
+}
+
+// ---------------------------------------------------------------- stepped (row 7)
+
+.stepped {
+  display: flex;
+  gap: rem(3);
+}
+
+.segment {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: rem(6);
+  border-radius: rem(6);
+  background-color: var(--sf-surface-2);
+  color: var(--sf-fg-muted);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:first-child {
+    border-start-start-radius: calc(var(--_h) / 2);
+    border-end-start-radius: calc(var(--_h) / 2);
+  }
+  &:last-child {
+    border-start-end-radius: calc(var(--_h) / 2);
+    border-end-end-radius: calc(var(--_h) / 2);
+  }
+
+  &[data-active] {
+    background-color: var(--sf-accent-default);
+    color: var(--sf-accent-on);
+  }
+}
+
+.stepped:not([aria-disabled="true"]) .segment:not([data-active]) {
+  @include hover {
+    background-color: var(--sf-surface-3);
+  }
+}
+
+.step-label {
+  font-family: var(--sf-font-mono);
+  font-size: rem(13);
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+
+  [data-current] > & {
+    font-weight: 700;
+  }
+}
+
+.dot {
+  flex-shrink: 0;
+  width: rem(6);
+  height: rem(6);
+  border-radius: rem(3);
+  background-color: currentColor;
+}
+
+.stepped[aria-disabled="true"] .segment {
+  background-color: var(--sf-disabled-fill);
+  color: var(--sf-disabled-fg);
+
+  &[data-active] {
+    background-color: var(--_fill-disabled);
+  }
+}
+
+.stepped[data-variant="glass"] .segment {
+  -webkit-backdrop-filter: blur(rem(12));
+  backdrop-filter: blur(rem(12));
+  border: 1px solid var(--sf-glass-rim);
+  background-color: var(--sf-glass-fill);
+
+  &[data-active] {
+    border-color: var(--sf-glass-rim-light);
+    background-color: var(--sf-glass-accent);
+    box-shadow: inset 0 1px 0 var(--sf-glass-highlight);
+  }
+}
+
+.stepped[data-variant="glass"][aria-disabled="true"] .segment {
+  border-color: var(--sf-disabled-rim);
+  background-color: var(--sf-disabled-glass);
+  box-shadow: none;
+
+  &[data-active] {
+    background-color: var(--_fill-disabled);
+  }
+}
+
+@include reduced-motion {
+  .slider,
+  .stepped,
+  .slider::after,
+  .fill,
+  .grip,
+  .value,
+  .segment {
+    transition: none;
+  }
+}

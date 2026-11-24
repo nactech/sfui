@@ -1,1 +1,2 @@
-export { ThemeContext, getSystemTheme, useThemeDetector } from './ThemeContext';
+export { ThemeContext, getSystemTheme, useSystemTheme, useThemeDetector } from './ThemeContext';
+export type { Appearance, ThemeContextValue } from './ThemeContext';

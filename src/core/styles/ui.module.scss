@@ -1,3 +1,5 @@
+@use "mixins" as *;
+
 .translucent-surface {
-    backdrop-filter: blur(50px);
+  @include glass;
 }

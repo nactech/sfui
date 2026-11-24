@@ -1,0 +1,116 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → H/A2 row 5 "Web wide — in-page header", master `Header/Web/Page`.
+// Left column (gap 6): breadcrumbs 13 · title 28/600 · description 13. Actions (gap 8) align to the bottom.
+// On narrow widths the actions wrap under the text instead of squeezing the title.
+
+.root {
+  box-sizing: border-box;
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: rem(12) rem(24);
+  min-width: 0;
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-sans);
+}
+
+.main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: rem(6);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.breadcrumbs {
+  max-width: 100%;
+}
+
+.trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: rem(6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: rem(6);
+  min-width: 0;
+  font-size: rem(13);
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.separator {
+  display: inline-flex;
+  color: var(--sf-fg-subtle);
+
+  svg {
+    width: rem(13);
+    height: rem(13);
+  }
+}
+
+.crumb-text {
+  color: var(--sf-fg-muted);
+}
+
+.crumb-current {
+  color: var(--sf-fg-default);
+}
+
+.crumb-link {
+  border-radius: rem(4);
+  color: var(--sf-fg-muted);
+  text-decoration: none;
+  transition: color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  @include hover {
+    color: var(--sf-fg-default);
+    text-decoration: underline;
+  }
+
+  @include focus-ring(rem(2));
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.title {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: rem(28);
+  font-weight: 600;
+  line-height: normal;
+  letter-spacing: rem(-0.8);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.description {
+  margin: 0;
+  color: var(--sf-fg-muted);
+  font-size: rem(13);
+  font-weight: 400;
+  line-height: normal;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: rem(8);
+}

@@ -2,5 +2,8 @@ dist
 node_modules
 public
 nactech-sfui-*.tgz
+storybook-static
+types
+*.tsbuildinfo
 # src/index.tsx
 # src/App.tsx

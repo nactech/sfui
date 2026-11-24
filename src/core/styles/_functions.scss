@@ -1,0 +1,12 @@
+@use "sass:math";
+
+/// Converts a design px value from final.pen to rem (1rem = 16px).
+/// Use it for every size, spacing, radius, font size and offset:
+///   padding: rem(12) rem(16);  // 0.75rem 1rem
+/// Hairlines stay 1px: `border: 1px solid ...` is the only allowed px.
+@function rem($px) {
+  @if $px == 0 {
+    @return 0;
+  }
+  @return math.div($px, 16) * 1rem;
+}

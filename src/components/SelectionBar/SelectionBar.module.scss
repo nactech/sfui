@@ -1,0 +1,144 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → H/A4 "Header · Selection flow", WEB steps 6–7 (frame j5xOq), master `Selection Bar/Web`.
+// Opaque surface/2 bar (not glass: it sits on the page canvas), 1px rim/strong, radius 16, 56 tall,
+// padding 0 10 0 14, gap 12; the step-7 banner sits 12 below.
+
+.root {
+  // Bar shadow (pen: 0 8 24 #00000080). Not a token.
+  --_shadow: #00000080;
+  // Above list rows scrolling underneath. Not a token.
+  --_z: 10;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: rem(12);
+  min-width: 0;
+  font-family: var(--sf-font-sans);
+  animation: sf-selection-bar-in var(--sf-duration-medium) var(--sf-ease-emphasized);
+
+  &[data-sticky] {
+    position: sticky;
+    top: 0;
+    z-index: var(--_z);
+  }
+
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+// "Header becomes a sticky selection bar": a short drop-in, no layout shift.
+@keyframes sf-selection-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(rem(-4));
+  }
+}
+
+.bar {
+  container-type: inline-size;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: rem(12);
+  min-width: 0;
+  height: rem(56);
+  padding: 0 rem(10) 0 rem(14);
+  border: 1px solid var(--sf-rim-strong);
+  border-radius: rem(16);
+  background-color: var(--sf-surface-2);
+  box-shadow: 0 rem(8) rem(24) var(--_shadow);
+  color: var(--sf-fg-default);
+}
+
+// Checkbox brings a 40×40 target; pull it in so the 20 box sits at the 14 inset with a 12 gap after it.
+.select-all {
+  margin: 0 rem(-10);
+}
+
+.count {
+  flex-shrink: 0;
+  font-size: rem(14);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: rem(24);
+  background-color: var(--sf-rim-strong);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: rem(12);
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+// "⌘A all · Esc clear": Geist Mono 11, fg/subtle. Only where a keyboard is likely and there is room.
+.hint {
+  flex-shrink: 0;
+  color: var(--sf-fg-subtle);
+  font-family: var(--sf-font-mono);
+  font-size: rem(11);
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+
+  @media (hover: none), (pointer: coarse) {
+    display: none;
+  }
+
+  @container (max-width: #{rem(640)}) {
+    display: none;
+  }
+}
+
+// ── Step 7 banner ────────────────────────────────────────────────────────
+
+.banner {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: rem(4) rem(8);
+  width: 100%;
+  padding: rem(10) rem(14);
+  border-radius: rem(12);
+  background-color: var(--sf-accent-tonal);
+  font-size: rem(13);
+  line-height: normal;
+}
+
+.banner-text {
+  color: var(--sf-accent-on-tonal);
+  font-weight: 400;
+}
+
+.banner-action {
+  @include button-reset;
+  border-radius: rem(4);
+  color: var(--sf-accent-default);
+  font-weight: 600;
+
+  @include hover {
+    text-decoration: underline;
+  }
+
+  &:active {
+    color: var(--sf-accent-pressed);
+  }
+
+  @include focus-ring(rem(2));
+}

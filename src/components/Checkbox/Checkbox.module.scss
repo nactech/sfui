@@ -1,0 +1,162 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → C/D "Expressive × Glass" (frames C/D1 Rest, C/D2 Pressed, C/D3 Focus, C/D4 Disabled).
+// M3E shape morph: the box is a rounded square when off (20, r6) and morphs into a circle when
+// checked/mixed (20, r10); while pressed it squishes to 18, r4 inside a 40×40 state-layer circle.
+
+.root {
+  --_box-size: #{rem(20)};
+  --_box-r: #{rem(6)};
+  --_box-fill: transparent;
+  --_box-ring: inset 0 0 0 #{rem(1.5)} var(--sf-fg-muted);
+  --_mark: var(--sf-accent-on);
+  --_check-opacity: 0;
+  --_check-scale: 0.4;
+  --_dash-opacity: 0;
+  --_dash-scale: 0.4;
+
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: rem(4);
+  min-width: 0;
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-sans);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+
+  &[data-state="checked"],
+  &[data-state="mixed"] {
+    --_box-r: #{rem(10)};
+    --_box-fill: var(--sf-accent-default);
+    --_box-ring: inset 0 0 0 0 transparent;
+  }
+
+  &[data-state="checked"] {
+    --_check-opacity: 1;
+    --_check-scale: 1;
+  }
+
+  &[data-state="mixed"] {
+    --_dash-opacity: 1;
+    --_dash-scale: 1;
+  }
+
+  // C/D2 Pressed: state layer + squish (pointer on the row, or Space on the input).
+  &:not([data-disabled]):active,
+  &:not([data-disabled]):has(.input:active) {
+    --_box-size: #{rem(18)};
+    --_box-r: #{rem(4)};
+
+    .layer {
+      background-color: var(--sf-glass-ghost-pressed);
+    }
+  }
+
+  // C/D4 Disabled: opaque disabled fill + hairline, marks in disabled/fg. Shape keeps its state.
+  &[data-disabled][data-state] {
+    --_box-fill: var(--sf-disabled-fill);
+    --_box-ring: inset 0 0 0 1px var(--sf-disabled-rim);
+    --_mark: var(--sf-disabled-fg);
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+}
+
+// 40×40 touch target.
+.control {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: rem(40);
+  height: rem(40);
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+// C/D3 Focus: 2px ring on the 40×40 circle.
+.input:focus-visible ~ .layer {
+  box-shadow: inset 0 0 0 rem(2) var(--sf-focus-ring);
+}
+
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--_box-size);
+  height: var(--_box-size);
+  border-radius: var(--_box-r);
+  background-color: var(--_box-fill);
+  box-shadow: var(--_box-ring);
+  transition:
+    width var(--sf-duration-medium) var(--sf-ease-spring),
+    height var(--sf-duration-medium) var(--sf-ease-spring),
+    border-radius var(--sf-duration-medium) var(--sf-ease-spring),
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+.check {
+  position: absolute;
+  width: rem(14);
+  height: rem(14);
+  color: var(--_mark);
+  opacity: var(--_check-opacity);
+  transform: scale(var(--_check-scale));
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-standard),
+    transform var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+.dash {
+  position: absolute;
+  width: rem(10);
+  height: rem(2);
+  border-radius: rem(1);
+  background-color: var(--_mark);
+  opacity: var(--_dash-opacity);
+  transform: scaleX(var(--_dash-scale));
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-standard),
+    transform var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+.label {
+  min-width: 0;
+  padding-right: rem(4);
+  font-size: rem(14);
+  font-weight: 400;
+  line-height: rem(20);
+}
+
+@include reduced-motion {
+  .layer,
+  .box,
+  .check,
+  .dash {
+    transition: none;
+  }
+}

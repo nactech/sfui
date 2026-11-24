@@ -1,0 +1,189 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → C/D "Expressive × Glass", master `Segmented/Default` (frames C/D1–C/D4, row "Segmented").
+// Connected segments 2 apart. Outer ends are round (height / 2), inner corners r8. The selected
+// segment morphs into a full pill with a check; an unselected segment morphs into a pill while pressed.
+// Over content the segments switch to glass.
+
+.root {
+  --_h: #{rem(40)};
+  --_outer: #{rem(20)};
+  --_inner: #{rem(8)};
+  --_pad: #{rem(16)};
+  --_font: #{rem(14)};
+  --_icon: #{rem(16)};
+
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: rem(2);
+  min-width: 0;
+  height: var(--_h);
+  border-radius: var(--_outer);
+  font-family: var(--sf-font-sans);
+
+  // C/D3 Focus: the 2px ring wraps the whole group while a segment has keyboard focus.
+  &:has(.segment:focus-visible) {
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: 0;
+  }
+}
+
+.size-s {
+  --_h: #{rem(32)};
+  --_outer: #{rem(16)};
+  --_pad: #{rem(12)};
+  --_font: #{rem(13)};
+  --_icon: #{rem(14)};
+}
+
+.size-m {
+  --_h: #{rem(40)};
+  --_outer: #{rem(20)};
+  --_pad: #{rem(16)};
+  --_font: #{rem(14)};
+  --_icon: #{rem(16)};
+}
+
+.size-l {
+  --_h: #{rem(48)};
+  --_outer: #{rem(24)};
+  --_pad: #{rem(20)};
+  --_font: #{rem(16)};
+  --_icon: #{rem(18)};
+}
+
+.segment {
+  --_fill: var(--sf-surface-2);
+  --_fill-pressed: var(--sf-surface-3);
+  --_rim: inset 0 0 0 0 transparent;
+  --_fg: var(--sf-fg-default);
+  --_blur: none;
+  --_r-start: var(--_inner);
+  --_r-end: var(--_inner);
+
+  @include button-reset;
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--_pad);
+  border-radius: var(--_r-start) var(--_r-end) var(--_r-end) var(--_r-start);
+  background-color: var(--_fill);
+  box-shadow: var(--_rim);
+  -webkit-backdrop-filter: var(--_blur);
+  backdrop-filter: var(--_blur);
+  color: var(--_fg);
+  font-size: var(--_font);
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    border-radius var(--sf-duration-medium) var(--sf-ease-spring),
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-standard),
+    color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:focus-visible {
+    outline: none; // the ring is drawn on the group (see .root:has)
+  }
+
+  &[data-position="first"] { --_r-start: var(--_outer); }
+  &[data-position="last"] { --_r-end: var(--_outer); }
+  &[data-position="only"] {
+    --_r-start: var(--_outer);
+    --_r-end: var(--_outer);
+  }
+
+  // Selected: full pill, accent fill, semibold label, check.
+  &[data-state="checked"] {
+    --_fill: var(--sf-accent-default);
+    --_fill-pressed: var(--sf-accent-default);
+    --_fg: var(--sf-accent-on);
+    --_r-start: var(--_outer);
+    --_r-end: var(--_outer);
+    font-weight: 600;
+  }
+
+  // C/D2 Pressed: the segment morphs into a pill and steps up a surface.
+  &:active:not(:disabled) {
+    --_r-start: var(--_outer);
+    --_r-end: var(--_outer);
+    background-color: var(--_fill-pressed);
+  }
+}
+
+// Over content → glass.
+.root[data-over-content] .segment {
+  --_fill: var(--sf-glass-fill);
+  --_fill-pressed: var(--sf-glass-fill-pressed);
+  --_rim: inset 0 0 0 1px var(--sf-glass-rim), inset 0 1px 0 var(--sf-glass-highlight-soft);
+  --_blur: blur(var(--sf-glass-blur));
+
+  &[data-state="checked"] {
+    --_fill: var(--sf-glass-accent);
+    --_fill-pressed: var(--sf-glass-accent);
+    --_rim: inset 0 0 0 1px var(--sf-glass-rim-light), inset 0 1px 0 var(--sf-glass-highlight);
+  }
+}
+
+// C/D4 Disabled: opaque — selected keeps surface/2, the rest disabled/fill; labels disabled/fg.
+// Same over content (no glass), so it never vanishes over images.
+.root .segment:disabled[data-state] {
+  --_fill: var(--sf-disabled-fill);
+  --_fill-pressed: var(--sf-disabled-fill);
+  --_rim: inset 0 0 0 0 transparent;
+  --_fg: var(--sf-disabled-fg);
+  --_blur: none;
+  cursor: not-allowed;
+
+  &[data-state="checked"] {
+    --_fill: var(--sf-surface-2);
+    --_fill-pressed: var(--sf-surface-2);
+  }
+}
+
+// Leading slot: option icon, or the check while selected. Collapses to zero width when empty.
+.lead {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: var(--_icon);
+  margin-right: 0;
+  overflow: hidden;
+  transition:
+    width var(--sf-duration-medium) var(--sf-ease-spring),
+    margin-right var(--sf-duration-medium) var(--sf-ease-spring);
+
+  &[data-visible] {
+    width: var(--_icon);
+    margin-right: rem(6);
+  }
+
+  svg {
+    flex-shrink: 0;
+    width: var(--_icon);
+    height: var(--_icon);
+  }
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@include reduced-motion {
+  .segment,
+  .lead {
+    transition: none;
+  }
+}

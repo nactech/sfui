@@ -1,0 +1,644 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → design group `list/`: one List, three styles.
+//   L/A Segmented      — every row its own surface/1 cell (r6), 2px gaps, group clips outer corners to 22;
+//                        press morphs the row to r16 on surface/3; selected = list/selected-surface.
+//   L/B Flat on canvas — rows on the canvas, full-width hairlines, Geist Mono meta, 52 media;
+//                        a rounded (r14) surface/1 highlight appears only on press; selected = list/selected tint.
+//   L/C Inset group    — rows inside one surface/1 group (1px rim, r22), hairlines inset after the media;
+//                        press lifts the row to surface/3; selected = list/selected tint.
+// Shared: large section header, edit-mode selection circles, swipe-left capsule actions (Pin / Delete).
+
+.list {
+  --_pad-x: #{rem(16)};
+  --_row-gap: #{rem(14)};
+  --_body-gap: #{rem(14)};
+  --_row-r: 0;
+  --_row-r-pressed: 0;
+  --_row-fill: transparent;
+  --_row-fill-hover: var(--sf-surface-2);
+  --_row-fill-pressed: var(--sf-surface-3);
+  --_row-fill-selected: var(--sf-list-selected);
+  --_thumb: #{rem(44)};
+  --_thumb-r: #{rem(22)};
+  --_thumb-icon: #{rem(20)};
+  --_title-size: #{rem(16)};
+
+  display: flex;
+  flex-direction: column;
+  gap: rem(16);
+  min-width: 0;
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-sans);
+}
+
+.segmented {
+  --_row-r: #{rem(6)};
+  --_row-r-pressed: #{rem(16)};
+  --_row-fill: var(--sf-surface-1);
+  --_row-fill-selected: var(--sf-list-selected-surface);
+}
+
+.flat {
+  --_pad-x: #{rem(8)};
+  --_row-r: #{rem(14)};
+  --_row-r-pressed: #{rem(14)};
+  // Hover is not drawn: half of the pressed highlight.
+  --_row-fill-hover: color-mix(in srgb, var(--sf-surface-1) 50%, transparent);
+  --_row-fill-pressed: var(--sf-surface-1);
+  --_thumb: #{rem(52)};
+  --_thumb-r: #{rem(14)};
+  --_thumb-icon: #{rem(24)};
+  --_title-size: #{rem(17)};
+}
+
+.inset {
+  --_body-gap: #{rem(12)};
+  --_thumb-r: #{rem(12)};
+}
+
+/* ── Section header ───────────────────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: rem(16);
+  min-height: rem(36);
+  padding: 0 var(--_pad-x);
+}
+
+.heading {
+  min-width: 0;
+  margin: 0;
+  color: var(--sf-fg-default);
+  font-size: rem(22);
+  font-weight: 700;
+  line-height: rem(28);
+}
+
+.header-action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.action {
+  @include button-reset;
+  @include focus-ring;
+  border-radius: var(--sf-radius-sm);
+  color: var(--sf-accent-default);
+  font-size: rem(17);
+  font-weight: 400;
+  line-height: rem(22);
+  text-decoration: none;
+  transition: color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  // Not drawn; kept subtle.
+  @include hover {
+    text-decoration: underline;
+    text-underline-offset: rem(3);
+  }
+
+  &:active {
+    color: var(--sf-accent-pressed);
+  }
+
+  &:disabled {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+}
+
+/* ── Group ────────────────────────────────────────────────────────────────────────────────────── */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.segmented .group {
+  gap: rem(2);
+  border-radius: rem(22);
+  overflow: clip;
+}
+
+.inset .group {
+  // Rim drawn inside the box (as Pen strokes are) and above the rows, so it adds no size and press fills don't hide it.
+  outline: 1px solid var(--sf-rim-default);
+  outline-offset: -1px;
+  border-radius: rem(22);
+  background-color: var(--sf-surface-1);
+  overflow: clip;
+}
+
+/* ── Row ──────────────────────────────────────────────────────────────────────────────────────── */
+
+.item {
+  position: relative;
+  // `clip` (not `hidden`): focusing a clipped swipe action must not scroll the row.
+  overflow: clip;
+}
+
+// Hairlines overlay the row's last pixel (76 pitch as drawn) instead of adding height.
+.flat .item:not(:last-child) {
+  box-shadow: inset 0 -1px 0 var(--sf-rim-default);
+}
+
+.content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--_row-gap);
+  padding: 0 var(--_pad-x);
+  border-radius: var(--_row-r);
+  background-color: var(--_row-fill);
+  transition:
+    transform var(--sf-duration-medium) var(--sf-ease-emphasized),
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    border-radius var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+.segmented .content,
+.flat .content {
+  padding-block: rem(12);
+}
+
+// Only swipeable rows get a transform (it would otherwise become the containing block of popovers in the row).
+.item[data-swipe] .content {
+  transform: translateX(calc(-1 * var(--_offset, 0rem)));
+  touch-action: pan-y;
+}
+
+.item[data-dragging] {
+  user-select: none;
+
+  .content,
+  .swipe-actions {
+    transition: none;
+  }
+}
+
+.content[data-interactive] {
+  cursor: pointer;
+}
+
+// Hover (not drawn, pointer devices only — same media query as the `hover` mixin). Keyed on the row's own action so
+// hovering a trailing Switch/Button does not light the row.
+@media (hover: hover) and (pointer: fine) {
+  .content[data-interactive]:has(.primary:hover, .select-hit:hover) {
+    background-color: var(--_row-fill-hover);
+  }
+}
+
+// L/x3 Selected (edit mode).
+.item[data-state="selected"] .content {
+  background-color: var(--_row-fill-selected);
+}
+
+// L/x2 Pressed.
+.content[data-interactive]:has(.primary:active, .select-hit:active) {
+  border-radius: var(--_row-r-pressed);
+  background-color: var(--_row-fill-pressed);
+}
+
+// Keyboard focus on the row's action or selection checkbox rings the whole row (inset so the group clip keeps it).
+.content:has(.primary:focus-visible, .select-input:focus-visible) {
+  outline: rem(2) solid var(--sf-focus-ring);
+  outline-offset: rem(-2);
+}
+
+.leading {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: var(--_body-gap);
+  min-width: 0;
+}
+
+.inset .body {
+  align-self: stretch;
+  padding-block: rem(12);
+  box-shadow: inset 0 -1px 0 var(--sf-rim-default);
+}
+
+.inset .item:last-child .body {
+  box-shadow: none;
+}
+
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: rem(2);
+  min-width: 0;
+}
+
+.title {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-sans);
+  font-size: var(--_title-size, #{rem(16)});
+  font-weight: 500;
+  line-height: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// The row's own link/button; its ::after stretches over the whole row so the row is one big target.
+.primary {
+  @include button-reset;
+  display: block;
+  outline: none;
+  text-decoration: none;
+  -webkit-user-drag: none;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: default;
+  }
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: rem(2);
+  min-width: 0;
+}
+
+.subtitle {
+  overflow: hidden;
+  color: var(--sf-fg-muted);
+  font-size: rem(13);
+  font-weight: 400;
+  line-height: rem(18);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flat .subtitle {
+  color: var(--sf-fg-subtle);
+  font-family: var(--sf-font-mono);
+  font-size: rem(11);
+  letter-spacing: rem(0.3);
+  line-height: normal;
+}
+
+// Two-line row.
+.meta {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sf-fg-muted);
+  font-size: rem(13);
+  font-weight: 400;
+  line-height: rem(18);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.trail {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: rem(8);
+}
+
+// Only real controls in the trailing slot sit above the row's stretched action; static content lets clicks through.
+.trailing {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+
+  :is(a, button, input, label, select, textarea, [tabindex]) {
+    pointer-events: auto;
+  }
+}
+
+.value {
+  color: var(--sf-fg-muted);
+  font-family: var(--sf-font-mono);
+  font-size: rem(12);
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+  width: rem(16);
+  height: rem(16);
+  color: var(--sf-fg-subtle);
+}
+
+/* ── Edit-mode selection circle (L/x3) ────────────────────────────────────────────────────────── */
+
+.select {
+  display: flex;
+  flex-shrink: 0;
+  width: rem(24);
+  height: rem(24);
+  animation: select-in var(--sf-duration-medium) var(--sf-ease-emphasized);
+}
+
+@keyframes select-in {
+  from {
+    width: 0;
+    margin-right: calc(-1 * var(--_row-gap));
+    opacity: 0;
+  }
+}
+
+.select-hit {
+  display: flex;
+  cursor: pointer;
+
+  // The whole row toggles the selection.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.select-input {
+  position: absolute;
+  width: rem(1);
+  height: rem(1);
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.select-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: rem(24);
+  height: rem(24);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 rem(1.5) var(--sf-fg-subtle);
+  color: var(--sf-accent-on);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-standard),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-standard);
+}
+
+.select-check {
+  width: rem(14);
+  height: rem(14);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-standard),
+    transform var(--sf-duration-medium) var(--sf-ease-spring);
+}
+
+.select-input:checked + .select-circle {
+  background-color: var(--sf-accent-default);
+  box-shadow: none;
+
+  .select-check {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.select-input:disabled + .select-circle {
+  background-color: var(--sf-disabled-fill);
+  box-shadow: inset 0 0 0 1px var(--sf-disabled-rim);
+  color: var(--sf-disabled-fg);
+}
+
+.select-input:disabled ~ * {
+  cursor: not-allowed;
+}
+
+/* ── Thumbnail + status pill ──────────────────────────────────────────────────────────────────── */
+
+.tone-accent {
+  --_tone-bg: var(--sf-accent-tonal);
+  --_tone-fg: var(--sf-accent-on-tonal);
+}
+
+.tone-positive {
+  --_tone-bg: var(--sf-positive-tonal);
+  --_tone-fg: var(--sf-positive-default);
+}
+
+.tone-warning {
+  --_tone-bg: var(--sf-warning-tonal);
+  --_tone-fg: var(--sf-warning-default);
+}
+
+.tone-danger {
+  --_tone-bg: var(--sf-danger-tonal);
+  --_tone-fg: var(--sf-danger-default);
+}
+
+.tone-neutral {
+  --_tone-bg: var(--sf-surface-3);
+  --_tone-fg: var(--sf-fg-muted);
+}
+
+.thumb {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--_thumb, #{rem(44)});
+  height: var(--_thumb, #{rem(44)});
+  overflow: clip;
+  border-radius: var(--_thumb-r, #{rem(12)});
+  background-color: var(--_tone-bg);
+  color: var(--_tone-fg);
+
+  svg {
+    width: var(--_thumb-icon, #{rem(20)});
+    height: var(--_thumb-icon, #{rem(20)});
+  }
+}
+
+// "MF": surface/3 circle with a rim/strong hairline, Geist Mono 13/600.
+.tone-avatar {
+  border: 1px solid var(--sf-rim-strong);
+  border-radius: 50%;
+  background-color: var(--sf-surface-3);
+  color: var(--sf-fg-default);
+  font-family: var(--sf-font-mono);
+  font-size: rem(13);
+  font-weight: 600;
+  line-height: normal;
+}
+
+.thumb-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: rem(4);
+  height: rem(24);
+  padding: 0 rem(8);
+  border-radius: var(--sf-radius-full);
+  background-color: var(--_tone-bg);
+  color: var(--_tone-fg);
+  font-family: var(--sf-font-mono);
+  font-size: rem(11);
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.status-icon {
+  display: flex;
+
+  svg {
+    width: rem(12);
+    height: rem(12);
+  }
+}
+
+.status-dot {
+  width: rem(6);
+  height: rem(6);
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* ── L/x4 Disabled: opaque disabled tokens, never opacity ─────────────────────────────────────── */
+
+.item[data-disabled] {
+  .title,
+  .subtitle,
+  .meta,
+  .value {
+    color: var(--sf-disabled-fg);
+  }
+
+  .thumb,
+  .status {
+    background-color: var(--sf-disabled-fill);
+    color: var(--sf-disabled-fg);
+  }
+
+  .tone-avatar {
+    border-color: var(--sf-disabled-rim);
+  }
+}
+
+/* ── L/x5 Swipe: capsule actions revealed behind the row ──────────────────────────────────────── */
+
+// Spans only the uncovered strip (`--_offset` wide), so actions are never visible through a transparent row, yet they
+// stay in the tab order; focusing one opens the row.
+.swipe-actions {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: var(--_offset, 0rem);
+  overflow: clip;
+  transition: width var(--sf-duration-medium) var(--sf-ease-emphasized);
+}
+
+.swipe-track {
+  display: flex;
+  flex-shrink: 0;
+  gap: rem(6);
+  // 4 from the row's edge, 6 to the list edge → 128 revealed for two capsules (L/x5).
+  padding: 0 rem(6) 0 rem(4);
+}
+
+.swipe-action {
+  // Delete label/icon are pure white in the frames; no token for it.
+  --_on-danger: #ffffff;
+
+  @include button-reset;
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: rem(4);
+  width: rem(56);
+  height: rem(56);
+  border-radius: 50%;
+  font-size: rem(11);
+  font-weight: 600;
+  line-height: normal;
+  transition:
+    transform var(--sf-duration-fast) var(--sf-ease-standard),
+    background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-tone="default"] {
+    background-color: var(--sf-warning-default);
+    color: var(--sf-surface-0);
+
+    &:active {
+      background-color: color-mix(in srgb, var(--sf-warning-default) 85%, var(--sf-surface-0));
+    }
+  }
+
+  &[data-tone="danger"] {
+    background-color: var(--sf-danger-default);
+    color: var(--_on-danger);
+
+    &:active {
+      background-color: color-mix(in srgb, var(--sf-danger-default) 85%, var(--sf-surface-0));
+    }
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+.swipe-icon {
+  display: flex;
+
+  svg {
+    width: rem(16);
+    height: rem(16);
+  }
+}
+
+@include reduced-motion {
+  .content,
+  .swipe-actions,
+  .swipe-action,
+  .select-circle,
+  .select-check,
+  .action {
+    transition: none;
+  }
+
+  .select {
+    animation: none;
+  }
+}

@@ -1,0 +1,4 @@
+/* Plain (non-module) stylesheet so Vite never tree-shakes the tokens out of Storybook builds. */
+@use "tokens";
+
+@include tokens.tokens;

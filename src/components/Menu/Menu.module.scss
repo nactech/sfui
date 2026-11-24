@@ -1,0 +1,543 @@
+@use "functions" as *;
+@use "mixins" as *;
+
+// final.pen → M/A2 "Menu / Android + Web" (zmlSQ), masters `Menu/Android+Web` (oSxWa) and
+// `Menu/Android+Web Submenu` (wiyxq).
+//
+// Panel 260 wide, r30, padding 10 0, glass. Rows 44 high: a full-width state-layer band (`.item`,
+// padding 0 6) around an inset lens (`.lens`, r14, padding 0 14 0 22) with a 36px icon slot.
+// Quick row: 60 high, padding 0 6, three equal r16 buttons (icon 20 over a 13/600 label, gap 8).
+// Separators: padding 12 26, 1px line. Group label: padding 2 20 6 28, 13/400 muted.
+// M3 state layers: hover 8%, pressed 10%, keyboard focus 10% + 2px focus ring.
+
+.panel {
+  // Values from the masters that have no --sf token.
+  --_panel-fill: #2c2c2e9e; // glass fill of the menu masters (darker/denser than --sf-glass-fill)
+  --_panel-rim: #ffffff1f; // 1px rim, white 12%
+  --_panel-shadow: #00000059; // drop shadow 0 16 48, black 35%
+  --_panel-blur: #{rem(15)}; // backdrop blur 15 (token --sf-glass-blur is 24)
+  --_fg: #ffffff; // labels and icons are pure white in the masters (--sf-fg-default is #F4F4F5)
+  --_fg-chevron: #ffffffb3; // submenu chevron, white 70%
+  --_fg-group: #ebebf599; // "Sort by" group caption
+  --_separator: #ffffff24; // separator line, white 14%
+  --_danger: #ff453a; // destructive label + icon
+  // State layers (hex values exist as tokens).
+  --_layer-hover: var(--sf-glass-ghost-pressed); // #FFFFFF14 — hover 8%
+  --_layer-pressed: var(--sf-glass-highlight-soft); // #FFFFFF1A — pressed / keyboard focus 10%
+
+  @include glass(var(--_panel-fill), var(--_panel-rim));
+  -webkit-backdrop-filter: blur(var(--_panel-blur));
+  backdrop-filter: blur(var(--_panel-blur));
+  box-shadow:
+    inset 0 1px 0 var(--sf-glass-highlight),
+    0 rem(16) rem(48) var(--_panel-shadow);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: rem(260);
+  max-width: calc(100vw - #{rem(16)});
+  border-radius: rem(30);
+  overflow: hidden;
+  color: var(--_fg);
+  font-family: var(--sf-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// Floating (Menu root): fixed under its anchor; height springs from the anchored edge.
+.floating {
+  position: fixed;
+  z-index: 1000;
+  transform-origin: top right;
+  animation: menu-enter var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &[data-align="start"] {
+    transform-origin: top left;
+  }
+  &[data-placement="top"] {
+    transform-origin: bottom right;
+  }
+  &[data-placement="top"][data-align="start"] {
+    transform-origin: bottom left;
+  }
+
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.viewport {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+// Submenu layers are portaled here; `contents` keeps them in the viewport's flow.
+.sub-host {
+  display: contents;
+}
+
+.layer {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: rem(10) 0;
+
+  &[hidden] {
+    display: none;
+  }
+
+  // Outgoing view of the shared-axis transition: out of flow so the panel measures the incoming one.
+  &[data-state="exiting"] {
+    position: absolute;
+    inset: 0 0 auto;
+    pointer-events: none;
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-label {
+  @include text(13, 400);
+  letter-spacing: rem(-0.1);
+  color: var(--_fg-group);
+  padding: rem(2) rem(20) rem(6) rem(28);
+  white-space: nowrap;
+}
+
+.separator {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: rem(12) rem(26);
+}
+
+.separator-line {
+  display: block;
+  height: 1px;
+  background-color: var(--_separator);
+}
+
+/* ── list rows ── */
+
+.item {
+  @include button-reset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 100%;
+  height: rem(44);
+  padding: 0 rem(6);
+  color: var(--_fg);
+  // M3 state layer: a full-width band, clipped by the panel's rounded corners.
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:focus {
+    outline: none;
+  }
+
+  &:not([aria-disabled="true"]) {
+    @include hover {
+      background-color: var(--_layer-hover);
+    }
+
+    &:active {
+      background-color: var(--_layer-pressed);
+    }
+  }
+
+  &:focus-visible {
+    background-color: var(--_layer-pressed);
+  }
+
+  &:focus-visible .lens {
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: rem(-2);
+  }
+
+  &[data-destructive] {
+    color: var(--_danger);
+  }
+
+  &[aria-checked="true"] {
+    color: var(--sf-accent-default);
+
+    .label {
+      font-weight: 500;
+    }
+  }
+
+  &[aria-disabled="true"] {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.lens {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0 rem(14) 0 rem(22);
+  border-radius: rem(14);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: rem(36);
+  height: 100%;
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+  }
+}
+
+.label {
+  @include text(17, 400);
+  flex: 1 1 0;
+  min-width: 0;
+  letter-spacing: rem(-0.4);
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--_fg-chevron);
+
+  svg {
+    width: rem(16);
+    height: rem(16);
+  }
+}
+
+// Back row of a submenu: "← Share", title 17/600.
+.back .label {
+  font-weight: 600;
+}
+
+/* ── quick actions ── */
+
+.quick-row {
+  box-sizing: border-box;
+  display: flex;
+  flex-shrink: 0;
+  padding: 0 rem(6);
+}
+
+.quick-action {
+  @include button-reset;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: rem(8);
+  min-width: 0;
+  height: rem(60);
+  border-radius: rem(16);
+  color: var(--_fg);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-standard);
+
+  &:focus {
+    outline: none;
+  }
+
+  &:not([aria-disabled="true"]) {
+    @include hover {
+      background-color: var(--_layer-hover);
+    }
+
+    &:active {
+      background-color: var(--_layer-pressed);
+    }
+  }
+
+  // Row 6: 10% layer + 2px ring drawn inside the rounded button.
+  &:focus-visible {
+    background-color: var(--_layer-pressed);
+    outline: rem(2) solid var(--sf-focus-ring);
+    outline-offset: rem(-2);
+  }
+
+  &[aria-disabled="true"] {
+    color: var(--sf-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  @include reduced-motion {
+    transition: none;
+  }
+}
+
+.quick-icon {
+  display: flex;
+
+  svg {
+    width: rem(20);
+    height: rem(20);
+  }
+}
+
+.quick-label {
+  @include text(13, 600);
+  max-width: 100%;
+  letter-spacing: rem(-0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ───────────────────────────── iOS ─────────────────────────────
+ * final.pen → M/A1 "Menu / iOS" (JM7ea), masters `Menu/iOS` (ql1qH) and `Menu/iOS Submenu` (EtYvd).
+ * Same glass panel (260 wide pull-down / 290 context, r30, 10 vertical padding). Rows 44: `.item` padding 0 10,
+ * `.lens` capsule r22. Without checkable items: lens padding 0 10 0 18, icon box 36 (icon x 28, label x 64).
+ * With them (UIMenu reserves the column for the whole view): padding 0 10 0 4, check box 20 (15px check),
+ * icon box 38 (check x 14, icon x 34, label x 72). Medium row: padding 0 14, cells 60 high r22.
+ * No hover, no state-layer band: one press lens (`.press-lens`, driven by pressLens.ts) that fades in on
+ * touch-down and travels to the item under the finger. Labels keep their colour while pressed. */
+
+.panel[data-platform="ios"] {
+  --_ios-press: #ffffff24; // press lens + keyboard highlight, white 14% (rows 2, 2B)
+  --_ios-disabled: #ebebf54d; // iOS tertiaryLabel (dark): disabled label + icon (row 5) — a colour, not opacity
+  --_ios-chevron: #ffffffb3; // submenu chevron, white 70%
+  --_ios-lens-fade: 100ms; // lens fades in on touch-down (~100 ms)
+  --_ios-lens-travel: 280ms; // lens travel / morph between items while sliding
+  --_ios-lens-ease: cubic-bezier(0.25, 1, 0.5, 1); // soft spring-like settle, no overshoot
+
+  font-family: var(--sf-font-ios);
+  color: var(--sf-ios-label);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+
+  &[data-variant="context"] {
+    width: rem(290);
+  }
+
+  .viewport {
+    // Stacking context so the press lens (z-index −1) paints under the rows but over the glass.
+    isolation: isolate;
+    // Press-and-slide must not pan the page; a list taller than the screen still scrolls vertically.
+    touch-action: none;
+
+    &[data-scrollable] {
+      touch-action: pan-y;
+    }
+  }
+
+  .label,
+  .group-label,
+  .quick-label {
+    font-family: var(--sf-font-ios);
+  }
+
+  .group-label {
+    color: var(--sf-ios-secondary-label);
+    padding-left: rem(28);
+  }
+
+  .separator-line {
+    background-color: var(--sf-ios-separator);
+  }
+
+  /* list rows */
+
+  .item {
+    padding: 0 rem(10);
+    color: var(--sf-ios-label);
+
+    &,
+    &:hover,
+    &:active,
+    &:focus-visible {
+      background-color: transparent;
+    }
+
+    // iPad keyboard: the lens look + focus ring on the capsule.
+    &:focus-visible .lens {
+      background-color: var(--_ios-press);
+    }
+
+    &[aria-checked="true"] {
+      color: var(--sf-ios-label);
+
+      .label {
+        font-weight: 400;
+      }
+    }
+
+    &[data-destructive] {
+      color: var(--sf-ios-red);
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--_ios-disabled);
+      cursor: default;
+    }
+  }
+
+  .lens {
+    padding: 0 rem(10) 0 rem(18);
+    border-radius: rem(22);
+  }
+
+  .check {
+    display: none;
+    align-items: center;
+    flex-shrink: 0;
+    width: rem(20);
+    height: 100%;
+
+    svg {
+      width: rem(15);
+      height: rem(15);
+    }
+  }
+
+  // A view with single/multiple choice reserves the leading check column on every row (not the Back row).
+  .layer:has([role="menuitemradio"], [role="menuitemcheckbox"]) {
+    .item:not(.back) {
+      .lens {
+        padding-left: rem(4);
+      }
+
+      .check {
+        display: flex;
+      }
+
+      .icon {
+        width: rem(38);
+      }
+    }
+
+    .group-label {
+      padding-left: rem(34);
+    }
+  }
+
+  .chevron {
+    color: var(--_ios-chevron);
+  }
+
+  /* medium row (quick actions) */
+
+  .quick-row {
+    padding: 0 rem(14);
+  }
+
+  .quick-action {
+    border-radius: rem(22);
+    color: var(--sf-ios-label);
+
+    &,
+    &:hover,
+    &:active,
+    &:focus-visible {
+      background-color: transparent;
+    }
+
+    &:focus-visible {
+      background-color: var(--_ios-press);
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--_ios-disabled);
+      cursor: default;
+    }
+  }
+}
+
+// The one press lens. Positioned in px-free rem by pressLens.ts (transform/width/height).
+.press-lens {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: 0;
+  height: 0;
+  border-radius: rem(22); // capsule on 44 rows, r22 cell in the medium row
+  background-color: var(--_ios-press);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--_ios-lens-fade) linear,
+    transform var(--_ios-lens-travel) var(--_ios-lens-ease),
+    width var(--_ios-lens-travel) var(--_ios-lens-ease),
+    height var(--_ios-lens-travel) var(--_ios-lens-ease);
+
+  // Appearing under the finger: jump into place, only fade.
+  &[data-instant] {
+    transition: opacity var(--_ios-lens-fade) linear;
+  }
+
+  &[data-visible] {
+    opacity: 1;
+  }
+
+  @include reduced-motion {
+    transition: opacity var(--_ios-lens-fade) linear;
+  }
+}
+
+// iOS pull-down / context menu grows out of its trigger (scale + fade from the trigger's centre).
+.floating[data-platform="ios"][data-align][data-placement] {
+  --_ios-grow-duration: 400ms;
+  --_ios-grow-ease: cubic-bezier(0.32, 0.72, 0, 1); // iOS-like critically damped settle
+  --_ios-fade-duration: 150ms;
+
+  transform-origin: var(--menu-origin-x, 100%) var(--menu-origin-y, 0%);
+  animation:
+    menu-ios-grow var(--_ios-grow-duration) var(--_ios-grow-ease),
+    menu-ios-fade var(--_ios-fade-duration) linear;
+
+  @include reduced-motion {
+    animation: menu-ios-fade var(--_ios-fade-duration) linear;
+  }
+}
+
+@keyframes menu-ios-grow {
+  from {
+    transform: scale(0.2);
+  }
+}
+
+@keyframes menu-ios-fade {
+  from {
+    opacity: 0;
+  }
+}
