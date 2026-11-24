@@ -6,7 +6,7 @@
 <img src="https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB" alt="React"/>
 </p>
 
-React components for [sf.fm](https://sf.fm) mini-apps in the **Black Glass** design system: a true-black canvas, elevation by surface steps and 1px rims, glass only for chrome that floats over content, and a periwinkle tonal accent. Version 0.1 targets the web, with native-feeling iOS implementations where iOS grammar differs.
+React components of **Black Glass**, the design system for Mark Fomin's projects: a true-black canvas, elevation by surface steps and 1px rims, glass only for chrome that floats over content, and a periwinkle tonal accent. Version 0.1 targets the web, with native-feeling iOS implementations where iOS grammar differs.
 
 ## Install
 

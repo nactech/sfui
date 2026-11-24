@@ -1,7 +1,7 @@
 {
   "name": "@nactech/sfui",
   "version": "0.1.0",
-  "description": "SF UI — Black Glass React component kit for sf.fm mini-apps (web)",
+  "description": "SF UI — React components of Black Glass, the design system for Mark Fomin's projects",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && rollup -c",
