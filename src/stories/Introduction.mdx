@@ -1,0 +1,37 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+import { TokenGrid } from "./TokenGrid";
+
+<Meta title="Introduction" />
+
+# SF UI · Black Glass
+
+React components for sf.fm mini-apps, ported from the finalized frames in `final.pen`.
+This is the **web** implementation (the "Android + Web" frames of each component).
+
+- True-black canvas. Elevation is a surface step plus a 1px rim — no drop shadows.
+- Glass only for chrome that floats over content.
+- Periwinkle tonal accent. Disabled states are opaque, never faded with opacity.
+- Geist for text, Geist Mono for numbers. Lucide icons only.
+- All sizes are in `rem` (1rem = 16px).
+
+## Setup
+
+```tsx
+import "@nactech/sfui/styles.css";
+import { Button } from "@nactech/sfui";
+
+export const App = () => (
+  <div className="sf-root">
+    <Button variant="primary">Export</Button>
+  </div>
+);
+```
+
+Load Geist yourself (for example `@fontsource-variable/geist` and `@fontsource-variable/geist-mono`);
+the kit falls back to the system UI font.
+
+## Tokens
+
+Every token is a CSS custom property prefixed with `--sf-`.
+
+<TokenGrid />
